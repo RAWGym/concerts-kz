@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { EventActions } from "@/components/event/event-actions";
 import { EventBadge } from "@/components/event/event-badge";
 import { EventPoster } from "@/components/event/event-poster";
 import { Section } from "@/components/ui/section";
@@ -207,16 +208,7 @@ export default async function EventPage({
               </p>
             )}
 
-            {event.mapUrl && (
-              <a
-                href={event.mapUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-4 inline-block font-display text-[11px] font-semibold uppercase tracking-[0.12em] text-coral"
-              >
-                {t.eventPage.onMap} →
-              </a>
-            )}
+            <EventActions event={event} locale={locale} />
           </aside>
         </div>
       </Section>

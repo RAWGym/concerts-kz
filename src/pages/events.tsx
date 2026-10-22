@@ -19,6 +19,8 @@ const categories: EventCategory[] = [
   "open_air",
 ];
 
+const allCities = { ru: "Все города", kz: "Барлық қалалар", en: "All cities" } as const;
+
 function parseCategory(value: string | string[] | undefined) {
   if (typeof value !== "string") return undefined;
   return categories.find((category) => category === value);
@@ -45,10 +47,21 @@ export default async function EventsPage({
   if (!isLocale(locale)) notFound();
 
   const t = getDictionary(locale);
-  const { category: rawCategory } = await searchParams;
+  const { category: rawCategory, city: rawCity } = await searchParams;
   const category = parseCategory(rawCategory);
+  const city = typeof rawCity === "string" ? rawCity : undefined;
 
-  const events = await getEvents(locale, { category });
+  const all = await getEvents(locale, { category });
+  const cities = [...new Set(all.map((e) => e.city).filter((c): c is string => Boolean(c)))].sort();
+  const events = city ? all.filter((e) => e.city === city) : all;
+
+  const href = (next: { category?: string; city?: string }) => {
+    const q = new URLSearchParams();
+    if (next.category) q.set("category", next.category);
+    if (next.city) q.set("city", next.city);
+    const s = q.toString();
+    return `${localePath(locale, "/events")}${s ? `?${s}` : ""}`;
+  };
 
   return (
     <Section>
@@ -56,19 +69,28 @@ export default async function EventsPage({
 
       <nav className="no-scrollbar -mx-5 mb-10 flex gap-2 overflow-x-auto px-5">
         <FilterChip
-          href={localePath(locale, "/events")}
+          href={href({ city })}
           label={t.categories.all}
           isActive={!category}
         />
         {categories.map((item) => (
           <FilterChip
             key={item}
-            href={`${localePath(locale, "/events")}?category=${item}`}
+            href={href({ category: item, city })}
             label={t.categories[item]}
             isActive={category === item}
           />
         ))}
       </nav>
+
+      {cities.length > 1 && (
+        <nav className="no-scrollbar -mx-5 -mt-6 mb-10 flex gap-2 overflow-x-auto px-5">
+          <FilterChip href={href({ category })} label={allCities[locale]} isActive={!city} />
+          {cities.map((c) => (
+            <FilterChip key={c} href={href({ category, city: c })} label={c} isActive={city === c} />
+          ))}
+        </nav>
+      )}
 
       {events.length === 0 ? (
         <EmptyState text={t.pages.eventsEmpty} />
