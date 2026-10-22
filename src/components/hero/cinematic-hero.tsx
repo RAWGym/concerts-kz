@@ -342,14 +342,9 @@ export function CinematicHero({
           <Reveal>
             <div className="mt-2.5 flex flex-wrap gap-3">
               {slide.ticketonUrl ? (
-                <a
-                  href={slide.ticketonUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn btn-primary"
-                >
+                <Link href={slide.ticketonUrl} className="btn btn-primary">
                   {labels.buyTicket}
-                </a>
+                </Link>
               ) : (
                 <span className="btn btn-secondary cursor-default opacity-70">
                   {labels.soon}

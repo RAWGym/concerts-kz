@@ -123,15 +123,13 @@ export default async function EventPage({
           )}
 
           <div className="mt-8 flex flex-wrap items-center gap-4">
-            {event.ticketonUrl && !event.isSoldOut ? (
-              <a
-                href={event.ticketonUrl}
-                target="_blank"
-                rel="noopener noreferrer"
+            {!event.isSoldOut ? (
+              <Link
+                href={localePath(locale, `/events/${event.slug}/tickets`)}
                 className="btn btn-primary"
               >
                 {t.actions.buyTicket}
-              </a>
+              </Link>
             ) : (
               <span className="btn btn-secondary cursor-default opacity-70">
                 {event.isSoldOut ? t.actions.soldOut : t.actions.soon}

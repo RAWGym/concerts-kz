@@ -9,7 +9,9 @@ import * as contacts from "@/pages/contacts";
 import * as events from "@/pages/events";
 import * as eventDetail from "@/pages/events-detail";
 import * as home from "@/pages/home";
+import * as checkout from "@/pages/checkout";
 import * as legal from "@/pages/legal";
+import OrderPage from "@/pages/order";
 import LoginPage from "@/pages/login";
 import * as news from "@/pages/news";
 import * as newsDetail from "@/pages/news-detail";
@@ -37,6 +39,8 @@ const router = createBrowserRouter([
           { index: true, element: page(home) },
           { path: "events", element: page(events) },
           { path: "events/:slug", element: page(eventDetail) },
+          { path: "events/:slug/tickets", element: page(checkout) },
+          { path: "orders/:id", element: <OrderPage /> },
           { path: "news", element: page(news) },
           { path: "news/:slug", element: page(newsDetail) },
           { path: "reports", element: page(reports) },

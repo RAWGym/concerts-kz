@@ -25,7 +25,7 @@ export function demoHeroSlides(locale: Locale): HeroSlide[] {
       schedule: "25 ноября / 20:00",
       price: "от 9 000 ₸",
       portraitUrl: "/Mayot.png",
-      ticketonUrl: "https://ticketon.kz/event/tckt2-dvizh-fest",
+      ticketonUrl: localePath(locale, "/events/mayot-bishkek/tickets"),
       detailsHref: localePath(locale, "/events/mayot-bishkek"),
       mood: {
         accent: "#FF4D4D",

@@ -4,6 +4,7 @@ import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { localePath } from "@/i18n/routing";
 
+import { PaymentBadges } from "@/components/payment-badges";
 import { company } from "@/lib/company";
 
 import { Logo } from "./logo";
@@ -60,7 +61,8 @@ export function SiteFooter({ locale, t }: { locale: Locale; t: Dictionary }) {
           </address>
         </div>
 
-        <div className="mt-12 border-t border-line pt-6 text-xs leading-5 text-fg-subtle">
+        <div className="mt-12 flex flex-col gap-4 border-t border-line pt-6 text-xs leading-5 text-fg-subtle md:flex-row md:items-center md:justify-between">
+          <div>
           <p>
             {company.name} · БИН {company.bin} · {company.address}
           </p>
@@ -68,6 +70,8 @@ export function SiteFooter({ locale, t }: { locale: Locale; t: Dictionary }) {
             {company.bank} · БИК {company.bik} · КБе {company.kbe} · IBAN{" "}
             {company.account}
           </p>
+          </div>
+          <PaymentBadges />
         </div>
 
         <div className="mt-6 flex flex-col gap-3 text-xs text-fg-subtle sm:flex-row sm:items-center sm:justify-between">
@@ -83,6 +87,12 @@ export function SiteFooter({ locale, t }: { locale: Locale; t: Dictionary }) {
             </Link>
             <Link href={localePath(locale, "/legal/refund")} className="transition-colors hover:text-coral">
               {t.footer.refund}
+            </Link>
+            <Link href={localePath(locale, "/legal/payment")} className="transition-colors hover:text-coral">
+              {t.footer.payment}
+            </Link>
+            <Link href={localePath(locale, "/legal/how-to-buy")} className="transition-colors hover:text-coral">
+              {t.footer.howToBuy}
             </Link>
           </div>
         </div>

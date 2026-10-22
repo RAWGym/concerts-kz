@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { LeadForm } from "@/components/forms/lead-form";
+import { Requisites } from "@/pages/legal";
 import { PageHeading, Section } from "@/components/ui/section";
 import { isLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
@@ -69,6 +70,15 @@ export default async function ContactsPage({
               {t.contacts.addressLabel}
             </dt>
             <dd className="mt-2 text-base text-fg-muted">{t.footer.address}</dd>
+          </div>
+
+          <div>
+            <dt className="font-display text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-subtle">
+              {t.footer.requisites}
+            </dt>
+            <dd>
+              <Requisites compact />
+            </dd>
           </div>
         </dl>
 
