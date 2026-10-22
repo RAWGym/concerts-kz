@@ -2,34 +2,37 @@ import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { localePath } from "@/i18n/routing";
 
+import type { EventCard } from "@/lib/data/types";
+import { formatEventDateTime, formatPriceFrom } from "@/lib/format";
+
 import type { HeroSlide } from "./types";
 
 /**
- * Наполнение кинематографичного героя: текущее главное событие.
- *
- * Компонент рассчитан на обтравленный портрет с прозрачным фоном, а у
- * реальных событий в базе лежат прямоугольные афиши — в этой сцене они
- * смотрятся неправильно. Поэтому пока показываем заготовленный слайд,
- * а на данные Supabase перейдём, когда появятся обтравленные PNG.
+ * Слайд героя из события «на главной» (is_featured, иначе ближайшее).
+ * У событий прямоугольные афиши, поэтому показываем их карточкой.
  */
-export function demoHeroSlides(locale: Locale): HeroSlide[] {
+export function heroSlideFromEvent(
+  event: EventCard | null,
+  locale: Locale,
+  t: Dictionary,
+): HeroSlide[] {
+  if (!event) return [];
   return [
     {
-      id: "lucaveros-almaty",
-      name: "Lucaveros",
-      subtitle: "Special guest",
-      city: "Алматы",
-      venue: "Motor Club",
-      schedule: "24 октября / 19:00",
-      price: "от 15 000 ₸",
+      id: event.id,
+      name: event.title,
+      subtitle: event.subtitle,
+      city: event.city,
+      venue: event.venueName,
+      schedule: formatEventDateTime(event.startsAt, locale, event.timezone),
+      price: formatPriceFrom(event.priceFrom, event.currency, locale, t.event.priceFrom),
       portraitUrl: null,
-      posterUrl: "/events/lucaveros-almaty.jpg",
-      ticketonUrl: localePath(locale, "/events/lucaveros-almaty/tickets"),
-      detailsHref: localePath(locale, "/events/lucaveros-almaty"),
-      mood: {
-        accent: "#FF4D4D",
-        glow: "rgba(255, 77, 77, 0.22)",
-      },
+      posterUrl: event.posterUrl,
+      ticketonUrl: event.isSoldOut
+        ? null
+        : (event.ticketonUrl ?? localePath(locale, `/events/${event.slug}/tickets`)),
+      detailsHref: localePath(locale, `/events/${event.slug}`),
+      mood: { accent: "#FF4D4D", glow: "rgba(255, 77, 77, 0.22)" },
     },
   ];
 }

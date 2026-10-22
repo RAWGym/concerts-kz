@@ -20,6 +20,16 @@ import * as partners from "@/pages/partners";
 import * as reports from "@/pages/reports";
 import * as reportDetail from "@/pages/reports-detail";
 
+import { AdminLayout } from "@/admin/layout";
+import AdminDashboard from "@/admin/dashboard";
+import AdminEvents from "@/admin/events";
+import AdminEventEdit from "@/admin/event-edit";
+import AdminVenues from "@/admin/venues";
+import AdminOrders from "@/admin/orders";
+import AdminLeads from "@/admin/leads";
+import AdminStaff from "@/admin/staff";
+import AdminAccount from "@/admin/account";
+
 import "./globals.css";
 
 const page = (mod: Parameters<typeof AsyncPage>[0]["module"]) => (
@@ -28,6 +38,21 @@ const page = (mod: Parameters<typeof AsyncPage>[0]["module"]) => (
 
 const router = createBrowserRouter([
   { path: "/", element: <LocaleRedirect /> },
+  {
+    path: "/admin",
+    element: <AdminLayout />,
+    errorElement: <RouteError />,
+    children: [
+      { index: true, element: <AdminDashboard /> },
+      { path: "events", element: <AdminEvents /> },
+      { path: "events/:id", element: <AdminEventEdit /> },
+      { path: "venues", element: <AdminVenues /> },
+      { path: "orders", element: <AdminOrders /> },
+      { path: "leads", element: <AdminLeads /> },
+      { path: "staff", element: <AdminStaff /> },
+      { path: "account", element: <AdminAccount /> },
+    ],
+  },
   {
     path: "/:locale",
     element: <SiteLayout />,

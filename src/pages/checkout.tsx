@@ -37,7 +37,7 @@ export default async function CheckoutPage({
   const event = await getEventBySlug(slug, locale);
   if (!event) notFound();
 
-  const categories = await tickets.getCategories(event);
+  const categories = await tickets.getCategories(event, locale);
   return <Checkout event={event} categories={categories} locale={locale} />;
 }
 

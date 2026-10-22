@@ -4,13 +4,14 @@ import { notFound } from "next/navigation";
 import { EventCard } from "@/components/event/event-card";
 import { EventPoster } from "@/components/event/event-poster";
 import { CinematicHero } from "@/components/hero/cinematic-hero";
-import { demoHeroSlides, heroLabels } from "@/components/hero/demo-slides";
+import { heroLabels, heroSlideFromEvent } from "@/components/hero/demo-slides";
 import { EmptyState, Section, SectionHeading } from "@/components/ui/section";
 import { isLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { localePath } from "@/i18n/routing";
 import {
   getEvents,
+  getFeaturedEvent,
   getNews,
   getPartners,
   getPhotoReports,
@@ -25,19 +26,20 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
 
   const t = getDictionary(locale);
 
-  const [events, reports, news, partners, stats] = await Promise.all([
+  const [events, reports, news, partners, stats, featured] = await Promise.all([
     getEvents(locale, { limit: 8 }),
     getPhotoReports(locale, 4),
     getNews(locale, 2),
     getPartners(),
     getSiteStats(locale),
+    getFeaturedEvent(locale),
   ]);
 
 
   return (
     <>
       {/* ---------- герой ---------- */}
-      <CinematicHero slides={demoHeroSlides(locale)} labels={heroLabels(t)} />
+      <CinematicHero slides={heroSlideFromEvent(featured, locale, t)} labels={heroLabels(t)} />
 
       {/* ---------- ближайшие события ----------
           Верхний отступ урезан: секция идёт сразу за баннером и не

@@ -1,0 +1,67 @@
+import { useEffect, useState } from "react";
+
+import { db, formatDateTime, money } from "./db";
+import { PageTitle, Pill, Spinner, Table } from "./ui";
+
+type Order = {
+  id: string;
+  number: number;
+  status: "pending" | "paid" | "failed" | "expired" | "refunded";
+  total: number;
+  currency: string;
+  buyer_name: string;
+  buyer_phone: string;
+  buyer_email: string;
+  created_at: string;
+  event: { slug: string; translations: { locale: string; title: string }[] } | null;
+  items: { category_name: string; quantity: number }[];
+};
+
+const labels = { pending: "Ждёт оплаты", paid: "Оплачен", failed: "Ошибка", expired: "Истёк", refunded: "Возврат" } as const;
+const tones = { pending: "orange", paid: "teal", failed: "coral", expired: "muted", refunded: "muted" } as const;
+
+export default function Orders() {
+  const [rows, setRows] = useState<Order[] | null>(null);
+  const [status, setStatus] = useState<string>("");
+
+  useEffect(() => {
+    let q = db()
+      .from("orders")
+      .select("id, number, status, total, currency, buyer_name, buyer_phone, buyer_email, created_at, event:events(slug, translations:event_translations(locale, title)), items:order_items(category_name, quantity)")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (status) q = q.eq("status", status);
+    q.returns<Order[]>().then(({ data }) => setRows(data ?? []));
+  }, [status]);
+
+  return (
+    <>
+      <PageTitle title="Заказы">
+        <select className="rounded-btn border border-line-strong bg-surface px-3 py-2 text-sm text-fg" value={status} onChange={(e) => setStatus(e.target.value)}>
+          <option value="">Все статусы</option>
+          {Object.entries(labels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+        </select>
+      </PageTitle>
+      {!rows ? <Spinner /> : rows.length === 0 ? (
+        <p className="text-sm text-fg-muted">Заказов пока нет. Они появятся, когда подключим оплату.</p>
+      ) : (
+        <Table head={["№", "Событие", "Покупатель", "Билеты", "Сумма", "Статус", "Создан"]}>
+          {rows.map((o) => (
+            <tr key={o.id}>
+              <td className="px-4 py-3 text-fg-muted">{o.number}</td>
+              <td className="px-4 py-3 text-fg">{o.event?.translations.find((t) => t.locale === "ru")?.title ?? o.event?.slug ?? "—"}</td>
+              <td className="px-4 py-3 text-fg-muted">
+                <div className="text-fg">{o.buyer_name}</div>
+                <div className="text-xs">{o.buyer_phone} · {o.buyer_email}</div>
+              </td>
+              <td className="px-4 py-3 text-fg-muted">{o.items.map((i) => `${i.category_name} × ${i.quantity}`).join(", ")}</td>
+              <td className="px-4 py-3 text-fg">{money(o.total, o.currency)}</td>
+              <td className="px-4 py-3"><Pill tone={tones[o.status]}>{labels[o.status]}</Pill></td>
+              <td className="px-4 py-3 text-fg-muted">{formatDateTime(o.created_at)}</td>
+            </tr>
+          ))}
+        </Table>
+      )}
+    </>
+  );
+}

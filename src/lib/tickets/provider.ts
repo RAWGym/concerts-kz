@@ -1,4 +1,8 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 import type { EventDetail } from "@/lib/data/types";
+import { createPublicClient } from "@/lib/supabase/public";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
 
 import type {
   Order,
@@ -18,7 +22,7 @@ export const isSalesEnabled = Boolean(apiUrl);
 
 export interface TicketProvider {
   /** Категории и цены билетов на событие (из Ticketon). */
-  getCategories(event: EventDetail): Promise<TicketCategory[]>;
+  getCategories(event: EventDetail, locale?: string): Promise<TicketCategory[]>;
   /** Бронирует места и создаёт заказ со статусом pending. */
   createOrder(draft: OrderDraft): Promise<Order>;
   /** Ссылка на оплату заказа у банка-эквайера. */
@@ -64,8 +68,39 @@ const knownCategories: Record<string, { id: string; name: string; price: number;
   ],
 };
 
+type CategoryRow = {
+  code: string;
+  name: Record<string, string>;
+  price: number;
+  available: number | null;
+  max_per_order: number;
+};
+
+/** Тарифы из таблицы ticket_categories (их правят в админке). */
+async function dbCategories(event: EventDetail, locale: string): Promise<TicketCategory[] | null> {
+  if (!isSupabaseConfigured) return null;
+  const { data, error } = await (createPublicClient() as unknown as SupabaseClient)
+    .from("ticket_categories")
+    .select("code, name, price, available, max_per_order")
+    .eq("event_id", event.id)
+    .eq("is_active", true)
+    .order("sort_order")
+    .returns<CategoryRow[]>();
+  if (error || !data) return null;
+  return data.map((c) => ({
+    id: c.code,
+    name: c.name[locale] || c.name.ru || c.code,
+    price: Number(c.price),
+    currency: event.currency,
+    available: event.isSoldOut ? 0 : c.available,
+    maxPerOrder: c.max_per_order,
+  }));
+}
+
 const demoProvider: TicketProvider = {
-  async getCategories(event) {
+  async getCategories(event, locale = "ru") {
+    const fromDb = await dbCategories(event, locale);
+    if (fromDb && fromDb.length) return fromDb;
     const list =
       knownCategories[event.slug] ??
       (event.priceFrom

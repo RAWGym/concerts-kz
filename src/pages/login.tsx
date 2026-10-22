@@ -4,7 +4,6 @@ import { useNavigate, useParams } from "react-router";
 import { Section } from "@/components/ui/section";
 import { defaultLocale, isLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
-import { localePath } from "@/i18n/routing";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 
@@ -31,7 +30,7 @@ export default function LoginPage() {
     setBusy(false);
 
     if (error) setError(t.auth.error);
-    else navigate(localePath(locale, "/account"));
+    else navigate("/admin");
   }
 
   const input =
