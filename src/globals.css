@@ -1,0 +1,260 @@
+@import "tailwindcss";
+
+/* ============================================================
+   Дизайн-система Concerts Prod
+   Фон #0D0D0D · акцент коралловый #FF4D4D
+   Заголовки Space Grotesk (uppercase) · текст Inter
+   ============================================================ */
+
+@theme {
+  /* Поверхности */
+  --color-ink: #0d0d0d;
+  --color-ink-deep: #050505;
+  --color-surface: #1a1a1a;
+  --color-surface-2: #2e2e2e;
+  --color-line: #262626;
+  --color-line-strong: #3a3a3a;
+
+  /* Текст */
+  --color-fg: #f7f7f7;
+  --color-fg-muted: #b4b4b4;
+  --color-fg-subtle: #666666;
+  --color-fg-faint: #3d3d3d;
+
+  /* Акценты */
+  --color-coral: #ff4d4d;
+  --color-coral-hover: #ff6363;
+  --color-orange: #ff8a3d;
+  --color-teal: #00c2a8;
+
+  /* Типографика */
+  /* Unbounded вместо Space Grotesk из прототипа: нужен акцидентный
+     шрифт с кириллицей, иначе ru/kz-заголовки остаются без него. */
+  --font-display: var(--font-unbounded), var(--font-inter), system-ui,
+    sans-serif;
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+
+  /* Скругления */
+  --radius-card: 14px;
+  --radius-btn: 10px;
+}
+
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html {
+    background-color: var(--color-ink-deep);
+  }
+
+  body {
+    background-color: var(--color-ink);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-coral);
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  /* Горизонтальные ленты прокрутки без видимого скроллбара */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* ------------------------------------------------------------
+   Повторяющиеся элементы прототипа: надстрочник, чипы, кнопки.
+   ------------------------------------------------------------ */
+
+@layer components {
+  .overline {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-coral);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border-radius: var(--radius-btn);
+    padding: 15px 20px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition:
+      transform 0.12s ease,
+      background-color 0.18s ease,
+      border-color 0.18s ease,
+      color 0.18s ease;
+  }
+  .btn:active {
+    transform: scale(0.985);
+  }
+  .btn-primary {
+    background-color: var(--color-coral);
+    color: #fff;
+  }
+  .btn-primary:hover {
+    background-color: var(--color-coral-hover);
+  }
+  .btn-secondary {
+    background-color: transparent;
+    color: var(--color-fg);
+    border-color: var(--color-line-strong);
+  }
+  .btn-secondary:hover {
+    border-color: var(--color-coral);
+    color: var(--color-coral);
+  }
+  .btn-dark {
+    background-color: var(--color-ink);
+    color: var(--color-fg);
+    border-color: var(--color-ink);
+  }
+
+  /* Подложка героя. Повторяет фон афиши Движ Феста: раскалённое ядро
+     вверху, угли по полю и почти чёрный низ. Цвета сняты пипеткой с
+     постера, поэтому шапка страницы и афиша выглядят из одного мира. */
+  .hero-ember {
+    background-color: #1e0703;
+    background-image:
+      /* угли: крупные тёплые пятна с мягким краем */
+      radial-gradient(circle, rgba(255, 214, 150, 0.75) 0 3px, transparent 9px),
+      radial-gradient(circle, rgba(255, 168, 70, 0.6) 0 4px, transparent 12px),
+      radial-gradient(circle, rgba(255, 196, 110, 0.55) 0 2px, transparent 7px),
+      radial-gradient(circle, rgba(255, 140, 45, 0.5) 0 5px, transparent 14px),
+      radial-gradient(circle, rgba(255, 224, 170, 0.7) 0 2px, transparent 6px),
+      radial-gradient(circle, rgba(255, 150, 55, 0.45) 0 3px, transparent 10px),
+      radial-gradient(circle, rgba(255, 190, 100, 0.5) 0 2px, transparent 8px),
+      radial-gradient(circle, rgba(255, 120, 35, 0.4) 0 4px, transparent 13px),
+      /* искры помельче */
+      radial-gradient(circle, rgba(255, 235, 200, 0.65) 0 1.5px, transparent 5px),
+      radial-gradient(circle, rgba(255, 180, 90, 0.45) 0 1.5px, transparent 5px),
+      radial-gradient(circle, rgba(255, 205, 130, 0.5) 0 1px, transparent 4px),
+      radial-gradient(circle, rgba(255, 160, 60, 0.4) 0 2px, transparent 6px),
+      radial-gradient(circle, rgba(255, 230, 190, 0.55) 0 1px, transparent 4px),
+      radial-gradient(circle, rgba(255, 145, 50, 0.35) 0 2px, transparent 7px),
+      /* общее свечение над сценой */
+      radial-gradient(
+        60% 45% at 50% 12%,
+        rgba(255, 170, 60, 0.35) 0%,
+        transparent 100%
+      ),
+      /* основа */
+      radial-gradient(
+        130% 95% at 50% 4%,
+        #ff9f22 0%,
+        #c33509 20%,
+        #860c01 42%,
+        #450c03 66%,
+        #1e0703 100%
+      );
+    background-position:
+      9% 62%,
+      17% 33%,
+      24% 78%,
+      33% 47%,
+      41% 22%,
+      48% 69%,
+      56% 38%,
+      64% 81%,
+      13% 45%,
+      29% 58%,
+      45% 88%,
+      71% 29%,
+      79% 66%,
+      88% 41%,
+      0 0,
+      0 0;
+    background-size:
+      auto auto,
+      auto auto,
+      auto auto,
+      auto auto,
+      auto auto,
+      auto auto,
+      auto auto,
+      auto auto,
+      auto auto,
+      auto auto,
+      auto auto,
+      auto auto,
+      auto auto,
+      auto auto,
+      cover,
+      cover;
+    background-repeat: no-repeat;
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-display);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 6px 10px;
+    border-radius: 6px;
+    background-color: var(--color-coral);
+    color: #fff;
+  }
+  .chip-ghost {
+    background-color: transparent;
+    border: 1px solid var(--color-line-strong);
+    color: var(--color-fg-muted);
+  }
+  .chip-soon {
+    background-color: transparent;
+    border: 1px solid var(--color-coral);
+    color: var(--color-coral);
+  }
+  .chip-last {
+    background-color: var(--color-orange);
+    color: #111;
+  }
+  .chip-sold {
+    background-color: var(--color-surface-2);
+    color: var(--color-fg-subtle);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

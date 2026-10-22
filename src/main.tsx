@@ -1,0 +1,60 @@
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import { createBrowserRouter, RouterProvider } from "react-router";
+
+import { AsyncPage } from "@/app/page-loader";
+import { LocaleRedirect, RouteError, SiteLayout } from "@/app/layout";
+import * as about from "@/pages/about";
+import * as contacts from "@/pages/contacts";
+import * as events from "@/pages/events";
+import * as eventDetail from "@/pages/events-detail";
+import * as home from "@/pages/home";
+import * as legal from "@/pages/legal";
+import LoginPage from "@/pages/login";
+import * as news from "@/pages/news";
+import * as newsDetail from "@/pages/news-detail";
+import NotFound from "@/pages/not-found";
+import * as partners from "@/pages/partners";
+import * as reports from "@/pages/reports";
+import * as reportDetail from "@/pages/reports-detail";
+
+import "./globals.css";
+
+const page = (mod: Parameters<typeof AsyncPage>[0]["module"]) => (
+  <AsyncPage module={mod} />
+);
+
+const router = createBrowserRouter([
+  { path: "/", element: <LocaleRedirect /> },
+  {
+    path: "/:locale",
+    element: <SiteLayout />,
+    errorElement: <RouteError />,
+    children: [
+      {
+        errorElement: <RouteError />,
+        children: [
+          { index: true, element: page(home) },
+          { path: "events", element: page(events) },
+          { path: "events/:slug", element: page(eventDetail) },
+          { path: "news", element: page(news) },
+          { path: "news/:slug", element: page(newsDetail) },
+          { path: "reports", element: page(reports) },
+          { path: "reports/:slug", element: page(reportDetail) },
+          { path: "about", element: page(about) },
+          { path: "partners", element: page(partners) },
+          { path: "contacts", element: page(contacts) },
+          { path: "legal/:doc", element: page(legal) },
+          { path: "login", element: <LoginPage /> },
+          { path: "*", element: <NotFound /> },
+        ],
+      },
+    ],
+  },
+]);
+
+createRoot(document.getElementById("root")!).render(
+  <StrictMode>
+    <RouterProvider router={router} />
+  </StrictMode>,
+);
