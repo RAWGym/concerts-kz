@@ -10,11 +10,13 @@ export function EventPoster({
   alt,
   sizes,
   priority = false,
+  className = "",
 }: {
   src: string | null;
   alt: string;
   sizes: string;
   priority?: boolean;
+  className?: string;
 }) {
   if (src) {
     return (
@@ -24,7 +26,7 @@ export function EventPoster({
         fill
         sizes={sizes}
         priority={priority}
-        className="object-cover transition-transform duration-[900ms] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.06]"
+        className={`object-cover transition-[transform,filter] duration-[900ms] ${className} ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.06]`}
       />
     );
   }

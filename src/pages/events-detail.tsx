@@ -21,9 +21,9 @@ import { tickets } from "@/lib/tickets/provider";
 
 /** Подписи, которых нет в общем словаре. */
 const L: Record<Locale, Record<string, string>> = {
-  ru: { home: "Главная", afisha: "Афиша", artist: "Исполнитель", age: "Возраст", date: "Дата", start: "Начало", doors: "Вход", schedule: "Расписание", tickets: "Билеты", more: "Показать полностью", less: "Скрыть", noAge: "Без ограничений" },
-  kz: { home: "Басты бет", afisha: "Афиша", artist: "Орындаушы", age: "Жас шегі", date: "Күні", start: "Басталуы", doors: "Кіру", schedule: "Кесте", tickets: "Билеттер", more: "Толық көрсету", less: "Жасыру", noAge: "Шектеусіз" },
-  en: { home: "Home", afisha: "Events", artist: "Artist", age: "Age", date: "Date", start: "Starts", doors: "Doors", schedule: "Schedule", tickets: "Tickets", more: "Show more", less: "Hide", noAge: "All ages" },
+  ru: { home: "Главная", afisha: "Афиша", artist: "Исполнитель", age: "Возраст", date: "Дата", start: "Начало", doors: "Вход", schedule: "Расписание", tickets: "Билеты", more: "Показать полностью", less: "Скрыть", noAge: "Без ограничений", ended: "Событие прошло", reports: "Смотреть фотоотчёты" },
+  kz: { home: "Басты бет", afisha: "Афиша", artist: "Орындаушы", age: "Жас шегі", date: "Күні", start: "Басталуы", doors: "Кіру", schedule: "Кесте", tickets: "Билеттер", more: "Толық көрсету", less: "Жасыру", noAge: "Шектеусіз", ended: "Іс-шара өтті", reports: "Фотоесептерді қарау" },
+  en: { home: "Home", afisha: "Events", artist: "Artist", age: "Age", date: "Date", start: "Starts", doors: "Doors", schedule: "Schedule", tickets: "Tickets", more: "Show more", less: "Hide", noAge: "All ages", ended: "This event has passed", reports: "See photo reports" },
 };
 
 /** «24 октября, суббота» в часовом поясе площадки. */
@@ -96,6 +96,10 @@ export default async function EventPage({
     { label: l.age, value: event.ageLimit !== null ? `${event.ageLimit}+` : l.noAge },
   ].filter((fact): fact is { label: string; value: string } => Boolean(fact));
 
+  // Через 6 часов после начала событие считаем прошедшим: продажи закрыты.
+  const ended = Date.parse(event.startsAt) + 6 * 3600_000 < Date.now();
+  const onSale = !event.isSoldOut && !ended;
+
   const card = "rounded-[20px] border border-line bg-surface p-5 md:p-7";
   const h2 = "font-display text-lg font-semibold uppercase tracking-[-0.01em] text-fg md:text-xl";
 
@@ -153,7 +157,12 @@ export default async function EventPage({
 
               {/* цены по тарифам */}
               <div className="mt-6 flex flex-wrap items-center gap-2.5">
-                {event.isSoldOut ? (
+                {ended ? (
+                  <>
+                    <span className="btn btn-secondary cursor-default opacity-70">{l.ended}</span>
+                    <Link href={localePath(locale, "/reports")} className="btn btn-primary">{l.reports}</Link>
+                  </>
+                ) : event.isSoldOut ? (
                   <span className="btn btn-secondary cursor-default opacity-70">{t.actions.soldOut}</span>
                 ) : (
                   <>
@@ -182,7 +191,7 @@ export default async function EventPage({
       </section>
 
       {/* Липкая панель покупки на телефоне: кнопка всегда под пальцем. */}
-      {!event.isSoldOut && (
+      {onSale && (
         <div className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-line bg-ink/85 backdrop-blur-xl md:hidden">
           <div className="flex items-center justify-between gap-4 px-4 py-3">
             <div className="min-w-0">
@@ -197,7 +206,7 @@ export default async function EventPage({
       )}
 
       {/* ---------- карточки ---------- */}
-      <div className="mx-auto grid max-w-7xl gap-5 px-4 pb-28 sm:px-6 md:pb-20 lg:grid-cols-[1fr_340px] lg:gap-6">
+      <div className={`mx-auto grid max-w-7xl gap-5 px-4 ${onSale ? "pb-28" : "pb-16"} sm:px-6 md:pb-20 lg:grid-cols-[1fr_340px] lg:gap-6`}>
         <div className="min-w-0 space-y-5">
           {/* расписание */}
           <section className={card}>
@@ -223,12 +232,12 @@ export default async function EventPage({
                 </div>
                 <div className="flex shrink-0 items-center gap-2.5">
                   <span className="rounded-full border border-line-strong px-4 py-2.5 font-display text-sm font-semibold text-fg">{time}</span>
-                  {!event.isSoldOut ? (
+                  {onSale ? (
                     <Link href={buyHref} target={external ? "_blank" : undefined} rel={external ? "noreferrer" : undefined} className="rounded-full bg-coral px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-coral-hover">
                       {price ?? t.actions.buyTicket}
                     </Link>
                   ) : (
-                    <span className="rounded-full bg-surface-2 px-5 py-2.5 text-sm text-fg-muted">{t.actions.soldOut}</span>
+                    <span className="rounded-full bg-surface-2 px-5 py-2.5 text-sm text-fg-muted">{ended ? l.ended : t.actions.soldOut}</span>
                   )}
                 </div>
               </div>
@@ -271,7 +280,7 @@ export default async function EventPage({
 
         {/* ---------- покупка ---------- */}
         <aside className="h-fit space-y-5 lg:sticky lg:top-24">
-          {!event.isSoldOut && (
+          {onSale && (
             <section className={`${card} hidden md:block`}>
               <h2 className={h2}>{l.tickets}</h2>
               {categories.length > 0 && (

@@ -24,6 +24,11 @@ const allCities = { ru: "Все города", kz: "Барлық қалалар"
 const searchFor = { ru: "Поиск", kz: "Іздеу", en: "Search" } as const;
 const reset = { ru: "Сбросить", kz: "Тазалау", en: "Reset" } as const;
 const intl = { ru: "ru-RU", kz: "kk-KZ", en: "en-GB" } as const;
+const whenLabels = {
+  ru: { upcoming: "Скоро", past: "Архив", emptyPast: "Здесь появятся прошедшие события." },
+  kz: { upcoming: "Жақында", past: "Мұрағат", emptyPast: "Мұнда өткен іс-шаралар пайда болады." },
+  en: { upcoming: "Upcoming", past: "Archive", emptyPast: "Past events will appear here." },
+} as const;
 
 function parseCategory(value: string | string[] | undefined) {
   if (typeof value !== "string") return undefined;
@@ -51,13 +56,18 @@ export default async function EventsPage({
   if (!isLocale(locale)) notFound();
 
   const t = getDictionary(locale);
-  const { category: rawCategory, city: rawCity, q: rawQ, date: rawDate } = await searchParams;
+  const { category: rawCategory, city: rawCity, q: rawQ, date: rawDate, when: rawWhen } = await searchParams;
+  const past = rawWhen === "past";
+  const w = whenLabels[locale];
   const category = parseCategory(rawCategory);
   const city = typeof rawCity === "string" ? rawCity : undefined;
   const query = typeof rawQ === "string" ? rawQ.trim() : "";
   const date = typeof rawDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(rawDate) ? rawDate : undefined;
 
-  const all = await getEvents(locale, { category });
+  const fetched = await getEvents(locale, { category, includePast: past });
+  const now = Date.now();
+  // Архив: от недавних к старым.
+  const all = past ? fetched.filter((e) => Date.parse(e.startsAt) < now).reverse() : fetched;
   const cities = [...new Set(all.map((e) => e.city).filter((c): c is string => Boolean(c)))].sort();
   const needle = query.toLowerCase();
   const events = all.filter(
@@ -79,13 +89,38 @@ export default async function EventsPage({
     if (next.city) q.set("city", next.city);
     if (query) q.set("q", query);
     if (date) q.set("date", date);
+    if (past) q.set("when", "past");
     const s = q.toString();
     return `${localePath(locale, "/events")}${s ? `?${s}` : ""}`;
   };
 
   return (
     <Section>
-      <PageHeading title={t.pages.eventsTitle} />
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <PageHeading title={t.pages.eventsTitle} />
+        <div role="tablist" className="mb-10 inline-flex rounded-full border border-line bg-ink p-1 md:mb-12">
+          {([["upcoming", w.upcoming], ["past", w.past]] as const).map(([key, label]) => {
+            const active = (key === "past") === past;
+            const q = new URLSearchParams();
+            if (category) q.set("category", category);
+            if (key === "past") q.set("when", "past");
+            const qs = q.toString();
+            return (
+              <Link
+                key={key}
+                href={`${localePath(locale, "/events")}${qs ? `?${qs}` : ""}`}
+                role="tab"
+                aria-selected={active}
+                className={`rounded-full px-5 py-2 font-display text-[11px] font-semibold uppercase tracking-[0.1em] transition-colors ${
+                  active ? "bg-coral text-white" : "text-fg-muted hover:text-fg"
+                }`}
+              >
+                {label}
+              </Link>
+            );
+          })}
+        </div>
+      </div>
 
       <nav className="no-scrollbar -mx-4 mb-10 flex gap-2 overflow-x-auto px-4 sm:-mx-6 sm:px-6">
         <FilterChip
@@ -134,11 +169,11 @@ export default async function EventsPage({
       )}
 
       {events.length === 0 ? (
-        <EmptyState text={t.pages.eventsEmpty} />
+        <EmptyState text={past ? w.emptyPast : t.pages.eventsEmpty} />
       ) : (
         <div className="grid grid-cols-2 gap-x-5 gap-y-10 md:grid-cols-3 lg:grid-cols-4">
           {events.map((event) => (
-            <EventCard key={event.id} event={event} locale={locale} t={t} />
+            <EventCard key={event.id} event={event} locale={locale} t={t} past={past} />
           ))}
         </div>
       )}
