@@ -5,7 +5,7 @@ import { localePath } from "@/i18n/routing";
 import type { HeroSlide } from "./types";
 
 /**
- * Временное наполнение кинематографичного героя.
+ * Наполнение кинематографичного героя: текущее главное событие.
  *
  * Компонент рассчитан на обтравленный портрет с прозрачным фоном, а у
  * реальных событий в базе лежат прямоугольные афиши — в этой сцене они
@@ -15,18 +15,17 @@ import type { HeroSlide } from "./types";
 export function demoHeroSlides(locale: Locale): HeroSlide[] {
   return [
     {
-      id: "mayot",
-      name: "Mayot",
-      // Не heroOverline: он уже стоит надстрочником, и подпись
-      // повторяла его слово в слово.
-      subtitle: "Большой сольный концерт",
-      city: "Бишкек",
-      venue: "Bishkek Arena",
-      schedule: "25 ноября / 20:00",
-      price: "от 9 000 ₸",
-      portraitUrl: "/Mayot.png",
-      ticketonUrl: localePath(locale, "/events/mayot-bishkek/tickets"),
-      detailsHref: localePath(locale, "/events/mayot-bishkek"),
+      id: "lucaveros-almaty",
+      name: "Lucaveros",
+      subtitle: "Special guest",
+      city: "Алматы",
+      venue: "Motor Club",
+      schedule: "24 октября / 19:00",
+      price: "от 15 000 ₸",
+      portraitUrl: null,
+      posterUrl: "/events/lucaveros-almaty.jpg",
+      ticketonUrl: localePath(locale, "/events/lucaveros-almaty/tickets"),
+      detailsHref: localePath(locale, "/events/lucaveros-almaty"),
       mood: {
         accent: "#FF4D4D",
         glow: "rgba(255, 77, 77, 0.22)",

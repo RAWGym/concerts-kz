@@ -251,6 +251,7 @@ export function CinematicHero({
       </div>
 
       {/* ---------- слой 3: портрет ---------- */}
+      {slide.portraitUrl ? (
       <motion.div
         className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 flex justify-center"
         style={{ x: portrait.x, y: portrait.y }}
@@ -276,6 +277,31 @@ export function CinematicHero({
           />
         </motion.div>
       </motion.div>
+      ) : slide.posterUrl ? (
+        // Прямоугольная афиша: карточкой поверх слова, на десктопе справа,
+        // на мобильной по центру над инфо-блоком.
+        <motion.div
+          className="pointer-events-none absolute inset-x-0 top-[22%] -z-10 flex justify-center md:inset-x-auto md:right-[8%] md:top-[16%]"
+          style={{ x: portrait.x, y: portrait.y }}
+        >
+          <motion.div
+            className="relative aspect-[4/5] w-[54vw] max-w-[280px] overflow-hidden rounded-card shadow-[0_30px_80px_rgba(0,0,0,0.6)] ring-1 ring-white/10 md:w-[30vw] md:max-w-[420px]"
+            initial={
+              animated ? { opacity: 0, y: 34, rotate: 0, filter: "blur(10px)" } : false
+            }
+            animate={{ opacity: 1, y: 0, rotate: 2, filter: "blur(0px)" }}
+            transition={{ duration: 1.4, delay: 0.5, ease: EASE_OUT }}
+          >
+            <Image
+              src={slide.posterUrl}
+              alt={slide.name}
+              fill
+              priority
+              className="object-cover"
+            />
+          </motion.div>
+        </motion.div>
+      ) : null}
 
       {/* ---------- слой 4: зерно ----------
           Между портретом и инфо-блоком: ложится на фон, слово и

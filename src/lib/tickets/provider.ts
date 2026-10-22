@@ -51,27 +51,32 @@ const apiProvider: TicketProvider = {
   getOrder: (orderId) => call(`/orders/${encodeURIComponent(orderId)}`),
 };
 
-/* ---------------- демо-режим ---------------- */
+/* ---------------- без сервера продаж ---------------- */
 
-/** Округление до 500, чтобы демо-цены выглядели как настоящие. */
-const round = (n: number) => Math.round(n / 500) * 500;
+/**
+ * Тарифы событий, пока нет сервера продаж и Ticketon. Цены и остатки
+ * взяты с текущей страницы продаж. Потом их отдаст /tickets/categories.
+ */
+const knownCategories: Record<string, { id: string; name: string; price: number; available: number | null }[]> = {
+  "lucaveros-almaty": [
+    { id: "standard", name: "Стандартный", price: 15000, available: 200 },
+    { id: "vip", name: "VIP", price: 25000, available: 18 },
+  ],
+};
 
 const demoProvider: TicketProvider = {
   async getCategories(event) {
-    const base = event.priceFrom ?? 5000;
-    const make = (id: string, name: string, price: number): TicketCategory => ({
-      id,
-      name,
-      price,
+    const list =
+      knownCategories[event.slug] ??
+      (event.priceFrom
+        ? [{ id: "standard", name: "Входной билет", price: event.priceFrom, available: null }]
+        : []);
+    return list.map((c) => ({
+      ...c,
       currency: event.currency,
-      available: event.isSoldOut ? 0 : null,
+      available: event.isSoldOut ? 0 : c.available,
       maxPerOrder: 6,
-    });
-    return [
-      make("vip", "VIP Fan Zone", round(base * 2.9)),
-      make("standard", "Standard", round(base * 1.6)),
-      make("balcony", "Balcony", base),
-    ];
+    }));
   },
   async createOrder() {
     throw new Error("sales disabled");

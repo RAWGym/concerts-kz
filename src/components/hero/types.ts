@@ -19,7 +19,9 @@ export type HeroSlide = {
   /** «от 20 000 ₸» — null, если цена не объявлена. */
   price: string | null;
   /** Обтравленный портрет с прозрачным фоном. */
-  portraitUrl: string;
+  portraitUrl: string | null;
+  /** Прямоугольная афиша. Показывается карточкой, если нет портрета. */
+  posterUrl?: string | null;
   /** Внешняя ссылка на билеты. null — продажи ещё не открыты. */
   ticketonUrl: string | null;
   /** Внутренняя ссылка на страницу события. */
