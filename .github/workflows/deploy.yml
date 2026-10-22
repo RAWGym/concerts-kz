@@ -4,6 +4,10 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # Пересобираем каждые 3 часа: новые события из админки получают
+  # свои страницы для поисковиков и превью ссылок.
+  schedule:
+    - cron: "17 */3 * * *"
 
 permissions:
   contents: read
