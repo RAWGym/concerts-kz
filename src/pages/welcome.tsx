@@ -10,6 +10,7 @@ import { defaultLocale, isLocale } from "@/i18n/config";
 import { onboardingLabels } from "@/i18n/onboarding";
 import { localePath } from "@/i18n/routing";
 import { formatKzPhone, isFullKzPhone, isOnboarded, saveOnboarding } from "@/lib/account/auth";
+import { changePassword } from "@/lib/account/api";
 import { useSession } from "@/lib/account/session";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
@@ -38,6 +39,10 @@ export default function WelcomePage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [stage, setStage] = useState<"password" | "profile">("password");
+  const [pass, setPass] = useState("");
+  const [pass2, setPass2] = useState("");
+  const [shown, setShown] = useState(false);
 
   useEffect(() => {
     document.title = `${o.profileTitle} · Concerts Prod`;
@@ -85,6 +90,24 @@ export default function WelcomePage() {
     }
   }
 
+  async function onPassword(e: FormEvent) {
+    e.preventDefault();
+    if (pass.length < 8) return setError(o.passShort);
+    if (strength(pass) === 0) return setError(o.passWeak);
+    if (pass !== pass2) return setError(o.passMismatch);
+    setBusy(true);
+    setError(null);
+    try {
+      await changePassword(pass);
+      setStage("profile");
+    } catch (err) {
+      const msg = String((err as { message?: string }).message ?? "");
+      setError(/weak|short|characters/i.test(msg) ? o.passWeak : o.tooMany);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function skip() {
     setBusy(true);
     await saveOnboarding({ fullName: name, phone: "", city, news: false }).catch(() => undefined);
@@ -102,18 +125,22 @@ export default function WelcomePage() {
         className="grain relative w-full max-w-lg overflow-hidden rounded-[22px] border border-line bg-[radial-gradient(120%_90%_at_100%_0%,rgba(255,77,77,0.18)_0%,transparent_60%),linear-gradient(180deg,#151515,#0f0f0f)] p-6 sm:p-10"
       >
         <div className="relative z-[2]">
-          <p className="overline">{fill(o.step, { n: "3" })}</p>
-          <div className="mt-3 grid grid-cols-3 gap-1.5">
-            {[1, 2, 3].map((n) => (
-              <span key={n} className="h-1 overflow-hidden rounded-full bg-line">
-                <motion.span
-                  className="block h-full bg-coral"
-                  initial={{ width: n < 3 ? "100%" : "0%" }}
-                  animate={{ width: n < 3 || done ? "100%" : "35%" }}
-                  transition={{ duration: 0.6, ease: EASE_OUT }}
-                />
-              </span>
-            ))}
+          <p className="overline">{fill(o.step, { n: stage === "password" && !done ? "3" : "4" })}</p>
+          <div className="mt-3 grid grid-cols-4 gap-1.5">
+            {[1, 2, 3, 4].map((n) => {
+              const full = n <= 2 || done || (n === 3 && stage === "profile");
+              const part = (n === 3 && stage === "password") || (n === 4 && stage === "profile");
+              return (
+                <span key={n} className="h-1 overflow-hidden rounded-full bg-line">
+                  <motion.span
+                    className="block h-full bg-coral"
+                    initial={{ width: n <= 2 ? "100%" : "0%" }}
+                    animate={{ width: full ? "100%" : part ? "35%" : "0%" }}
+                    transition={{ duration: 0.6, ease: EASE_OUT }}
+                  />
+                </span>
+              );
+            })}
           </div>
 
           <AnimatePresence mode="wait" initial={false}>
@@ -148,9 +175,96 @@ export default function WelcomePage() {
                   </Link>
                 </div>
               </motion.div>
+            ) : stage === "password" ? (
+              <motion.form
+                key="password"
+                onSubmit={onPassword}
+                initial={{ opacity: 0, x: 16 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -16 }}
+                transition={{ duration: 0.3, ease: EASE_OUT }}
+                className="space-y-5"
+              >
+                <div className="pt-6">
+                  <h1 className="font-display text-3xl font-bold uppercase tracking-[-0.02em] text-fg">{o.passTitle}</h1>
+                  <p className="mt-3 text-sm leading-6 text-fg-muted">{o.passLead}</p>
+                </div>
+
+                <label className="block">
+                  <span className="field-label">{o.password}</span>
+                  <span className="relative block">
+                    <input
+                      type={shown ? "text" : "password"}
+                      value={pass}
+                      onChange={(e) => {
+                        setPass(e.target.value);
+                        setError(null);
+                      }}
+                      autoComplete="new-password"
+                      autoFocus
+                      minLength={8}
+                      className="field pr-12"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShown((v) => !v)}
+                      aria-label={shown ? "Hide password" : "Show password"}
+                      className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-fg-subtle transition-colors hover:text-fg"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-[18px] w-[18px]" aria-hidden>
+                        <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" />
+                        <circle cx="12" cy="12" r="3" />
+                        {shown && <path d="M4 4l16 16" strokeLinecap="round" />}
+                      </svg>
+                    </button>
+                  </span>
+                  {pass && (
+                    <span className="mt-2.5 flex items-center gap-3">
+                      <span className="grid flex-1 grid-cols-3 gap-1">
+                        {[0, 1, 2].map((i) => (
+                          <span
+                            key={i}
+                            className={`h-1 rounded-full transition-colors duration-300 ${
+                              i <= strength(pass) ? ["bg-coral", "bg-orange", "bg-teal"][strength(pass)] : "bg-line"
+                            }`}
+                          />
+                        ))}
+                      </span>
+                      <span className="w-20 text-right text-xs text-fg-subtle">{o.strength[strength(pass)]}</span>
+                    </span>
+                  )}
+                </label>
+
+                <label className="block">
+                  <span className="field-label">{o.password2}</span>
+                  <input
+                    type={shown ? "text" : "password"}
+                    value={pass2}
+                    onChange={(e) => {
+                      setPass2(e.target.value);
+                      setError(null);
+                    }}
+                    autoComplete="new-password"
+                    className="field"
+                  />
+                </label>
+
+                {error && (
+                  <p role="alert" className="rounded-btn border border-coral/40 bg-coral/10 px-4 py-3 text-sm text-coral">
+                    {error}
+                  </p>
+                )}
+
+                <button type="submit" disabled={busy} className="btn btn-primary w-full disabled:opacity-60">
+                  {busy && <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />}
+                  {o.continue}
+                </button>
+              </motion.form>
             ) : (
               <motion.form
                 key="form"
+                initial={{ opacity: 0, x: 16 }}
+                animate={{ opacity: 1, x: 0 }}
                 onSubmit={onSubmit}
                 exit={{ opacity: 0, x: -16 }}
                 transition={{ duration: 0.25 }}
@@ -227,4 +341,13 @@ export default function WelcomePage() {
       </motion.section>
     </div>
   );
+}
+
+/** 0 — слабый, 1 — средний, 2 — надёжный. */
+function strength(p: string): 0 | 1 | 2 {
+  if (p.length < 8) return 0;
+  const kinds = [/[a-zа-яё]/, /[A-ZА-ЯЁ]/, /\d/, /[^\w\sа-яёА-ЯЁ]/].filter((r) => r.test(p)).length;
+  if (kinds >= 3 && p.length >= 10) return 2;
+  if (kinds >= 2) return 1;
+  return 0;
 }

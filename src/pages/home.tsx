@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { EventCard } from "@/components/event/event-card";
 import { EventPoster } from "@/components/event/event-poster";
+import { PartnerLogos } from "@/components/partners/partner-logos";
 import { DateStrip } from "@/components/home/date-strip";
 import { FeaturedCarousel } from "@/components/home/featured-carousel";
 import { CountUp } from "@/components/motion/count-up";
@@ -43,6 +44,9 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
     getSiteStats(locale),
   ]);
   const events = upcoming.slice(0, 8);
+  // Фото в блоке «О компании» — обложка фотоотчёта, её меняют в админке.
+  const aboutReport = reports.find((r) => r.slug === "dvizh-fest") ?? reports[0];
+  const aboutPhoto = aboutReport?.coverUrl ?? "/reports/dvizh-fest/01.jpg";
   // В карусели сначала отмеченные «главными», потом ближайшие.
   const featured = [...upcoming.filter((e) => e.isFeatured), ...upcoming.filter((e) => !e.isFeatured)].slice(0, 6);
 
@@ -123,8 +127,8 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
             {/* Живое фото с Движ Феста: огонь сцены в тон кораллу. */}
             <Reveal delay={0.1} className="grain group relative aspect-[4/3] overflow-hidden rounded-card bg-surface">
               <img
-                src="/reports/dvizh-fest/01.jpg"
-                alt="Движ Фест"
+                src={aboutPhoto}
+                alt={aboutReport?.title ?? "Concerts Prod"}
                 loading="lazy"
                 decoding="async"
                 className="absolute inset-0 h-full w-full object-cover transition-transform duration-[1200ms] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.04]"
@@ -238,18 +242,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
         <Section className="border-t border-line">
           <SectionHeading title={t.home.partners} />
 
-          <ul className="grid grid-cols-3 gap-px overflow-hidden rounded-card bg-line md:grid-cols-6">
-            {partners.map((partner) => (
-              <li
-                key={partner.id}
-                className="flex h-24 items-center justify-center bg-ink px-4"
-              >
-                <span className="font-display text-sm font-semibold uppercase tracking-[0.08em] text-fg-subtle">
-                  {partner.name}
-                </span>
-              </li>
-            ))}
-          </ul>
+          <PartnerLogos partners={partners} />
         </Section>
       )}
 

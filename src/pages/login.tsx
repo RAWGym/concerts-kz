@@ -247,8 +247,8 @@ export default function LoginPage() {
           {mode === "signup" ? (
             <div className="mb-5">
               <p className="overline">{fill(o.step, { n: codeSent ? "2" : "1" })}</p>
-              <div className="mt-3 grid grid-cols-3 gap-1.5">
-                {[1, 2, 3].map((n) => (
+              <div className="mt-3 grid grid-cols-4 gap-1.5">
+                {[1, 2, 3, 4].map((n) => (
                   <span key={n} className="h-1 overflow-hidden rounded-full bg-line">
                     <motion.span
                       className="block h-full bg-coral"

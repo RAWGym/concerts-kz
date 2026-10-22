@@ -2,7 +2,7 @@ import type { Locale } from "./config";
 
 /** Подписи пошаговой регистрации и входа по коду. */
 const ru = {
-  step: "Шаг {n} из 3",
+  step: "Шаг {n} из 4",
   getCode: "Получить код",
   codeTitle: "Введите код",
   codeLead: "Отправили {length} цифр на {email}. Письмо приходит за несколько секунд.",
@@ -16,6 +16,14 @@ const ru = {
   verify: "Подтвердить",
   codeLogin: "Войти по коду из письма",
   signupLead: "Без пароля: пришлём код на почту — и вы в кабинете.",
+  passTitle: "Придумайте пароль",
+  passLead: "Чтобы входить без кода из письма. Не меньше 8 символов.",
+  password: "Пароль",
+  password2: "Повторите пароль",
+  passShort: "Пароль должен быть не короче 8 символов.",
+  passMismatch: "Пароли не совпадают.",
+  passWeak: "Слишком простой пароль. Добавьте цифры или буквы другого регистра.",
+  strength: ["Слабый", "Средний", "Надёжный"],
   profileTitle: "Расскажите о себе",
   profileLead: "Подставим данные в билеты и заказы, чтобы оформлять было быстрее.",
   name: "Имя и фамилия",
@@ -39,7 +47,7 @@ const ru = {
 type Labels = typeof ru;
 
 const kz: Labels = {
-  step: "{n}-қадам, барлығы 3",
+  step: "{n}-қадам, барлығы 4",
   getCode: "Код алу",
   codeTitle: "Кодты енгізіңіз",
   codeLead: "{email} поштасына {length} сан жібердік. Хат бірнеше секундта келеді.",
@@ -53,6 +61,14 @@ const kz: Labels = {
   verify: "Растау",
   codeLogin: "Хаттағы кодпен кіру",
   signupLead: "Құпиясөзсіз: поштаға код жібереміз — және сіз кабинеттесіз.",
+  passTitle: "Құпиясөз ойлап табыңыз",
+  passLead: "Хаттағы кодсыз кіру үшін. Кемінде 8 таңба.",
+  password: "Құпиясөз",
+  password2: "Құпиясөзді қайталаңыз",
+  passShort: "Құпиясөз кемінде 8 таңба болуы керек.",
+  passMismatch: "Құпиясөздер сәйкес емес.",
+  passWeak: "Құпиясөз тым қарапайым. Сандар немесе бас әріптер қосыңыз.",
+  strength: ["Әлсіз", "Орташа", "Сенімді"],
   profileTitle: "Өзіңіз туралы айтыңыз",
   profileLead: "Деректерді билеттер мен тапсырыстарға қоямыз, рәсімдеу жылдамырақ болады.",
   name: "Аты-жөні",
@@ -74,7 +90,7 @@ const kz: Labels = {
 };
 
 const en: Labels = {
-  step: "Step {n} of 3",
+  step: "Step {n} of 4",
   getCode: "Get code",
   codeTitle: "Enter the code",
   codeLead: "We sent {length} digits to {email}. It arrives in a few seconds.",
@@ -88,6 +104,14 @@ const en: Labels = {
   verify: "Confirm",
   codeLogin: "Sign in with an e-mail code",
   signupLead: "No password: we e-mail you a code and you're in.",
+  passTitle: "Create a password",
+  passLead: "So you can sign in without an e-mail code. At least 8 characters.",
+  password: "Password",
+  password2: "Repeat password",
+  passShort: "The password must be at least 8 characters.",
+  passMismatch: "Passwords don't match.",
+  passWeak: "Too simple. Add digits or mixed-case letters.",
+  strength: ["Weak", "Fair", "Strong"],
   profileTitle: "Tell us about you",
   profileLead: "We'll prefill tickets and orders so checkout is faster.",
   name: "Full name",
