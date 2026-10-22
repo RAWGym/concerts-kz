@@ -30,7 +30,7 @@ export function SiteFooter({ locale, t }: { locale: Locale; t: Dictionary }) {
             </p>
           </div>
 
-          <nav className="grid grid-cols-2 gap-x-10 gap-y-3">
+          <nav className="grid h-fit grid-cols-2 content-start gap-x-12 gap-y-3">
             {mainNav(locale, t).map((item) => (
               <Link
                 key={item.href}

@@ -98,7 +98,7 @@ export default async function EventsPage({
     <Section>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <PageHeading title={t.pages.eventsTitle} />
-        <div role="tablist" className="mb-10 inline-flex rounded-full border border-line bg-ink p-1 md:mb-12">
+        <div role="tablist" className="-mt-4 mb-8 inline-flex rounded-full border border-line bg-ink p-1 md:mt-0 md:mb-10">
           {([["upcoming", w.upcoming], ["past", w.past]] as const).map(([key, label]) => {
             const active = (key === "past") === past;
             const q = new URLSearchParams();

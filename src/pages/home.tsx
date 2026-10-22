@@ -83,7 +83,6 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
           должна отваливаться от него пустотой. */}
       <Section padding="pt-7 pb-16 md:pt-10 md:pb-20">
         <SectionHeading
-          overline={t.home.categories}
           title={t.home.upcoming}
           action={{
             href: localePath(locale, "/events"),

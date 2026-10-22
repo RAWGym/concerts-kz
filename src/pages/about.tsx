@@ -84,7 +84,7 @@ export default async function AboutPage({
         <ol className="mt-8 divide-y divide-line border-y border-line">
           {t.about.steps.map((step, index) => (
             <li key={step.title} className="flex gap-6 py-6">
-              <span className="font-display text-sm font-bold text-coral">
+              <span className="w-8 shrink-0 pt-0.5 font-display text-sm font-bold tabular-nums text-coral">
                 {String(index + 1).padStart(2, "0")}
               </span>
               <div>
