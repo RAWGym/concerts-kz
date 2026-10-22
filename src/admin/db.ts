@@ -110,3 +110,21 @@ export function slugify(s: string) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 }
+
+/** Загрузка файла в публичный бакет Storage, возвращает адрес. */
+export async function uploadPublic(bucket: string, file: File, prefix = "file") {
+  const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+  const path = `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
+  const { error } = await db().storage.from(bucket).upload(path, file, { contentType: file.type });
+  if (error) throw new Error(error.message);
+  return { path, url: db().storage.from(bucket).getPublicUrl(path).data.publicUrl };
+}
+
+export type I18n = { ru?: string; kz?: string; en?: string };
+
+/** Убирает пустые языки, чтобы сайт откатывался на русский. */
+export function cleanI18n(v: I18n): I18n {
+  const out: I18n = {};
+  for (const k of ["ru", "kz", "en"] as const) if (v[k]?.trim()) out[k] = v[k]!.trim();
+  return out;
+}

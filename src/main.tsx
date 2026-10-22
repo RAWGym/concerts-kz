@@ -29,6 +29,10 @@ import AdminOrders from "@/admin/orders";
 import AdminLeads from "@/admin/leads";
 import AdminStaff from "@/admin/staff";
 import AdminAccount from "@/admin/account";
+import AdminNews from "@/admin/news";
+import AdminReports from "@/admin/reports";
+import AdminPartners from "@/admin/partners";
+import AdminStats from "@/admin/stats";
 
 import "./globals.css";
 
@@ -51,6 +55,10 @@ const router = createBrowserRouter([
       { path: "leads", element: <AdminLeads /> },
       { path: "staff", element: <AdminStaff /> },
       { path: "account", element: <AdminAccount /> },
+      { path: "news", element: <AdminNews /> },
+      { path: "reports", element: <AdminReports /> },
+      { path: "partners", element: <AdminPartners /> },
+      { path: "stats", element: <AdminStats /> },
     ],
   },
   {

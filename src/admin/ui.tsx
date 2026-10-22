@@ -59,3 +59,54 @@ export function Table({ head, children }: { head: string[]; children: ReactNode 
 export function Spinner() {
   return <div className="py-16 text-center text-sm text-fg-subtle">Загрузка…</div>;
 }
+
+const LANGS = [
+  { code: "ru", label: "RU" },
+  { code: "kz", label: "KZ" },
+  { code: "en", label: "EN" },
+] as const;
+type Lang = (typeof LANGS)[number]["code"];
+
+/**
+ * Поля на трёх языках с общим переключателем. values — объект
+ * { поле: { ru, kz, en } }, fields — подписи и тип поля.
+ */
+export function I18nFields({
+  values,
+  onChange,
+  fields,
+  lang,
+  setLang,
+}: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  values: Record<string, any>;
+  onChange: (field: string, lang: Lang, value: string) => void;
+  fields: { key: string; label: string; rows?: number }[];
+  lang: Lang;
+  setLang: (l: Lang) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-1">
+        {LANGS.map((l) => (
+          <button key={l.code} type="button" onClick={() => setLang(l.code)}
+            className={`rounded-btn px-3 py-1.5 text-xs font-semibold tracking-[0.06em] ${lang === l.code ? "bg-coral text-white" : "text-fg-muted hover:text-fg"}`}>
+            {l.label}
+          </button>
+        ))}
+      </div>
+      {fields.map((f) => (
+        <Field key={f.key} label={`${f.label}${lang === "ru" ? "" : ` (${lang.toUpperCase()})`}`}>
+          {f.rows ? (
+            <textarea rows={f.rows} className={inputCls} value={values[f.key]?.[lang] ?? ""} onChange={(e) => onChange(f.key, lang, e.target.value)} />
+          ) : (
+            <input className={inputCls} value={values[f.key]?.[lang] ?? ""} onChange={(e) => onChange(f.key, lang, e.target.value)} />
+          )}
+        </Field>
+      ))}
+      {lang !== "ru" && <p className="text-xs text-fg-subtle">Пустой перевод заменится русским текстом.</p>}
+    </div>
+  );
+}
+
+export type { Lang };
