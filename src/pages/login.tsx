@@ -129,7 +129,7 @@ export default function LoginPage() {
   const heading = mode === "signup" ? t.titleSignup : mode === "reset" ? t.titleReset : t.title;
 
   return (
-    <div className="mx-auto grid w-full max-w-6xl gap-6 px-5 pb-20 pt-6 md:pt-10 lg:grid-cols-[1.05fr_1fr] lg:gap-10">
+    <div className="mx-auto grid w-full max-w-7xl gap-6 px-4 sm:px-6 pb-20 pt-6 md:pt-10 lg:grid-cols-[1.05fr_1fr] lg:gap-10">
       {/* ---------- витрина ---------- */}
       <motion.aside
         initial={{ opacity: 0, scale: 0.98 }}

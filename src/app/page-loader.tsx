@@ -85,7 +85,7 @@ export function AsyncPage({ module: mod }: { module: PageModule }) {
 /** Пока страница грузит данные — контур будущей вёрстки, а не пустота. */
 function PageSkeleton() {
   return (
-    <div aria-busy className="mx-auto min-h-[70vh] max-w-6xl px-5 py-12">
+    <div aria-busy className="mx-auto min-h-[70vh] max-w-7xl px-4 sm:px-6 py-12">
       <div className="skeleton h-3 w-28 rounded-full" />
       <div className="skeleton mt-4 h-10 w-2/3 max-w-md rounded-btn" />
       <div className="skeleton mt-3 h-4 w-1/2 max-w-sm rounded-full" />

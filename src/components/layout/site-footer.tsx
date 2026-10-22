@@ -19,7 +19,7 @@ export function SiteFooter({ locale, t }: { locale: Locale; t: Dictionary }) {
 
   return (
     <footer className="border-t border-line bg-ink-deep">
-      <div className="mx-auto max-w-6xl px-5 py-14">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-14">
         <div className="flex flex-col gap-10 md:flex-row md:justify-between">
           <div className="max-w-xs">
             <Link href={localePath(locale)} className="inline-block">

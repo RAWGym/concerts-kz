@@ -3,18 +3,17 @@ import { notFound } from "next/navigation";
 
 import { EventCard } from "@/components/event/event-card";
 import { EventPoster } from "@/components/event/event-poster";
-import { CinematicHero } from "@/components/hero/cinematic-hero";
+import { DateStrip } from "@/components/home/date-strip";
+import { FeaturedCarousel } from "@/components/home/featured-carousel";
 import { CountUp } from "@/components/motion/count-up";
 import { Marquee } from "@/components/motion/marquee";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion/reveal";
-import { heroLabels, heroSlideFromEvent } from "@/components/hero/demo-slides";
 import { EmptyState, Section, SectionHeading } from "@/components/ui/section";
 import { isLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { localePath } from "@/i18n/routing";
 import {
   getEvents,
-  getFeaturedEvent,
   getNews,
   getPartners,
   getPhotoReports,
@@ -36,23 +35,31 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
 
   const t = getDictionary(locale);
 
-  const [events, reports, news, partners, stats, featured] = await Promise.all([
-    getEvents(locale, { limit: 8 }),
+  const [upcoming, reports, news, partners, stats] = await Promise.all([
+    getEvents(locale, { limit: 60 }),
     getPhotoReports(locale, 4),
     getNews(locale, 2),
     getPartners(),
     getSiteStats(locale),
-    getFeaturedEvent(locale),
   ]);
+  const events = upcoming.slice(0, 8);
+  // В карусели сначала отмеченные «главными», потом ближайшие.
+  const featured = [...upcoming.filter((e) => e.isFeatured), ...upcoming.filter((e) => !e.isFeatured)].slice(0, 6);
 
 
   return (
     <>
       {/* ---------- герой ---------- */}
-      <CinematicHero slides={heroSlideFromEvent(featured, locale, t)} labels={heroLabels(t)} />
+      <section className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 md:pt-8">
+        <h1 className="sr-only">Concerts Production</h1>
+        <FeaturedCarousel events={featured} locale={locale} t={t} />
+        <div className="mt-6 md:mt-8">
+          <DateStrip events={upcoming} locale={locale} />
+        </div>
+      </section>
 
       {/* ---------- бегущая строка: где мы работаем ---------- */}
-      <div className="border-y border-line bg-ink-deep py-4" aria-label={geography[locale].join(", ")}>
+      <div className="mt-8 border-y border-line bg-ink-deep py-4 md:mt-10" aria-label={geography[locale].join(", ")}>
         <Marquee speed={45}>
           {geography[locale].map((country) => (
             <span key={country} aria-hidden className="flex items-center">

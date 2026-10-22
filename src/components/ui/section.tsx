@@ -19,7 +19,7 @@ export function Section({
   padding?: string;
 }) {
   return (
-    <section className={`mx-auto max-w-6xl px-5 ${padding} ${className}`}>
+    <section className={`mx-auto max-w-7xl px-4 sm:px-6 ${padding} ${className}`}>
       {children}
     </section>
   );

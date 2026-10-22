@@ -12,7 +12,7 @@ export default function NotFound() {
   const t = getDictionary(defaultLocale);
 
   return (
-    <div className="mx-auto flex min-h-[60vh] max-w-6xl flex-col items-center justify-center px-5 text-center">
+    <div className="mx-auto flex min-h-[60vh] max-w-7xl flex-col items-center justify-center px-4 sm:px-6 text-center">
       <p className="font-display text-6xl font-bold text-coral">404</p>
       <p className="mt-4 max-w-sm text-sm leading-6 text-fg-muted">
         {t.home.emptyEvents}

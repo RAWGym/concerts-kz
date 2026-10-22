@@ -87,7 +87,7 @@ export default function AccountPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-5 pb-24 pt-6 md:pt-10">
+    <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 pb-24 pt-6 md:pt-10">
       {/* ---------- шапка кабинета ---------- */}
       <motion.header
         initial={{ opacity: 0, y: 16 }}
@@ -135,7 +135,7 @@ export default function AccountPage() {
       )}
 
       {/* ---------- вкладки ---------- */}
-      <nav className="no-scrollbar sticky top-[76px] z-30 -mx-5 mt-8 overflow-x-auto px-5 sm:top-[84px]">
+      <nav className="no-scrollbar sticky top-[76px] z-30 -mx-4 mt-8 overflow-x-auto px-4 sm:-mx-6 sm:px-6 sm:top-[84px]">
         <ul className="flex w-max gap-1 rounded-full border border-line bg-ink/80 p-1 backdrop-blur-xl">
           {TABS.map((key) => {
             const active = key === tab;
