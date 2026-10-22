@@ -112,6 +112,17 @@ export default function AccountPage() {
             </div>
           </div>
 
+          <div className="flex flex-col gap-3 md:items-end">
+          <button
+            type="button"
+            onClick={onSignOut}
+            className="inline-flex w-fit items-center gap-2 self-start rounded-full border border-line-strong bg-ink/60 px-4 py-2 text-sm text-fg-muted backdrop-blur transition-colors hover:border-coral hover:text-coral md:self-end"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden>
+              <path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H3" />
+            </svg>
+            {t.profile.signOut}
+          </button>
           <dl className="grid grid-cols-3 gap-2 sm:gap-3">
             {[
               { n: tickets.length, label: t.stats.tickets },
@@ -127,6 +138,7 @@ export default function AccountPage() {
               </div>
             ))}
           </dl>
+          </div>
         </div>
       </motion.header>
 

@@ -7,6 +7,7 @@ import { useNavigate, useSearchParams } from "react-router";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { localePath } from "@/i18n/routing";
+import { signOut } from "@/lib/account/api";
 import { initials, useSession } from "@/lib/account/session";
 import { motion } from "framer-motion";
 
@@ -282,16 +283,7 @@ function AccountButton({ locale, t }: { locale: Locale; t: Dictionary }) {
   }
 
   if (session.status === "user") {
-    return (
-      <Link
-        href={localePath(locale, "/account")}
-        aria-label={t.auth.account}
-        title={session.user.email}
-        className="ml-1 flex h-9 w-9 items-center justify-center rounded-full bg-[linear-gradient(135deg,#ff6b5b,#d6302c)] font-display text-[11px] font-bold text-white ring-2 ring-transparent transition-[box-shadow,transform] hover:scale-105 hover:ring-coral/40"
-      >
-        {initials(session.user)}
-      </Link>
-    );
+    return <AccountMenu locale={locale} t={t} email={session.user.email} label={initials(session.user)} />;
   }
 
   return (
@@ -305,5 +297,80 @@ function AccountButton({ locale, t }: { locale: Locale; t: Dictionary }) {
       </svg>
       {t.auth.login}
     </Link>
+  );
+}
+
+/** Аватар в шапке: меню с кабинетом, билетами и выходом. */
+function AccountMenu({ locale, t, email, label }: { locale: Locale; t: Dictionary; email: string; label: string }) {
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+  const h = headerLabels[locale];
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => {
+      if (!box.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [open]);
+
+  async function onSignOut() {
+    setOpen(false);
+    await signOut();
+    navigate(localePath(locale), { replace: true });
+  }
+
+  const item = "flex w-full items-center gap-3 rounded-btn px-3 py-2.5 text-left text-sm text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg";
+
+  return (
+    <div ref={box} className="relative ml-1">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-label={t.auth.account}
+        aria-expanded={open}
+        title={email}
+        className="flex h-9 w-9 items-center justify-center rounded-full bg-[linear-gradient(135deg,#ff6b5b,#d6302c)] font-display text-[11px] font-bold text-white ring-2 ring-transparent transition-[box-shadow,transform] hover:scale-105 hover:ring-coral/40"
+      >
+        {label}
+      </button>
+      {open && (
+        <motion.div
+          initial={{ opacity: 0, y: -6, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.18 }}
+          className="absolute right-0 top-[calc(100%+10px)] z-50 w-64 rounded-[16px] border border-line bg-[#111] p-1.5 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)] backdrop-blur-xl"
+        >
+          <p className="truncate px-3 pb-2 pt-2 text-xs text-fg-subtle">{email}</p>
+          <Link href={localePath(locale, "/account")} onClick={() => setOpen(false)} className={item}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4" aria-hidden>
+              <circle cx="12" cy="8" r="4" />
+              <path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" strokeLinecap="round" />
+            </svg>
+            {t.auth.account}
+          </Link>
+          <Link href={localePath(locale, "/account")} onClick={() => setOpen(false)} className={item}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4" aria-hidden>
+              <path d="M3 9V6a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v3a3 3 0 0 0 0 6v3a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-3a3 3 0 0 0 0-6Z" />
+            </svg>
+            {h.myTickets}
+          </Link>
+          <div className="my-1 h-px bg-line" />
+          <button type="button" onClick={onSignOut} className={`${item} hover:!text-coral`}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden>
+              <path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H3" />
+            </svg>
+            {t.auth.logout}
+          </button>
+        </motion.div>
+      )}
+    </div>
   );
 }

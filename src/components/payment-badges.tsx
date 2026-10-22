@@ -6,11 +6,7 @@ export function PaymentBadges({ className = "" }: { className?: string }) {
   return (
     <div className={`flex items-center gap-2 ${className}`} aria-label="Visa, Mastercard">
       <span className="flex h-7 items-center rounded-md bg-white px-2.5">
-        <svg viewBox="0 0 48 16" className="h-3.5" role="img" aria-label="Visa">
-          <text x="0" y="14" fontFamily="Arial, sans-serif" fontSize="17" fontStyle="italic" fontWeight="800" fill="#1a1f71">
-            VISA
-          </text>
-        </svg>
+        <img src="/payments/visa.png" alt="Visa" width={240} height={78} className="h-3.5 w-auto" />
       </span>
       <span className="flex h-7 items-center rounded-md bg-white px-2">
         <svg viewBox="0 0 32 20" className="h-4" role="img" aria-label="Mastercard">

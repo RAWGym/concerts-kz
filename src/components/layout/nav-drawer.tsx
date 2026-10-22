@@ -7,6 +7,7 @@ import { isActiveNavItem, type NavItem } from "./nav";
 import type { Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { localePath } from "@/i18n/routing";
+import { signOut } from "@/lib/account/api";
 import { useSession } from "@/lib/account/session";
 
 /**
@@ -125,6 +126,7 @@ export function NavDrawer({
 
         <div className="safe-bottom flex items-center justify-between gap-4 border-t border-line px-5 py-5">
           <LocaleSwitcher current={locale} />
+          <div className="flex items-center gap-2">
           <Link
             href={localePath(locale, session.status === "user" ? "/account" : "/login")}
             onClick={onClose}
@@ -132,6 +134,20 @@ export function NavDrawer({
           >
             {session.status === "user" ? getDictionary(locale).auth.account : getDictionary(locale).auth.login}
           </Link>
+          {session.status === "user" && (
+            <button
+              type="button"
+              onClick={async () => {
+                onClose();
+                await signOut();
+                window.location.assign(localePath(locale));
+              }}
+              className="rounded-full border border-line-strong px-4 py-2 font-display text-[11px] font-semibold uppercase tracking-[0.08em] text-fg-muted"
+            >
+              {getDictionary(locale).auth.logout}
+            </button>
+          )}
+          </div>
         </div>
       </div>
     </>
