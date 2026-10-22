@@ -70,10 +70,18 @@ export function SiteFooter({ locale, t }: { locale: Locale; t: Dictionary }) {
               </p>
             )}
             {socials.length > 0 && (
-              <p className="flex flex-wrap gap-x-4 gap-y-1 pt-2">
+              <p className="flex flex-wrap gap-2.5 pt-3">
                 {socials.map(([k, url]) => (
-                  <a key={k} href={url} target="_blank" rel="noreferrer" className="transition-colors hover:text-coral">
-                    {socialLabels[k]}
+                  <a
+                    key={k}
+                    href={url}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={socialLabels[k]}
+                    title={socialLabels[k]}
+                    className="grid h-10 w-10 place-items-center rounded-full border border-line-strong text-fg-muted transition-colors hover:border-coral hover:bg-coral hover:text-white"
+                  >
+                    <SocialIcon name={k} />
                   </a>
                 ))}
               </p>
@@ -119,4 +127,39 @@ export function SiteFooter({ locale, t }: { locale: Locale; t: Dictionary }) {
       </div>
     </footer>
   );
+}
+
+/** Значки соцсетей для круглых кнопок в подвале. */
+function SocialIcon({ name }: { name: string }) {
+  const c = { viewBox: "0 0 24 24", className: "h-[18px] w-[18px]", "aria-hidden": true } as const;
+  switch (name) {
+    case "instagram":
+      return (
+        <svg {...c} fill="none" stroke="currentColor" strokeWidth="1.8">
+          <rect x="3" y="3" width="18" height="18" rx="5" />
+          <circle cx="12" cy="12" r="4" />
+          <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
+        </svg>
+      );
+    case "telegram":
+      return (
+        <svg {...c} fill="currentColor">
+          <path d="M21.4 4.2 2.9 11.3c-1.3.5-1.2 1.2-.2 1.5l4.7 1.5 1.8 5.6c.2.6.4.8.9.8.4 0 .6-.2.9-.4l2.3-2.2 4.7 3.5c.9.5 1.5.2 1.7-.8l3.1-14.6c.3-1.3-.5-1.9-1.4-1.5Zm-3.3 3.4-8.5 7.7-.3 3.4-1.6-5 9.9-6.3c.5-.3.9 0 .5.2Z" />
+        </svg>
+      );
+    case "tiktok":
+      return (
+        <svg {...c} fill="currentColor">
+          <path d="M16.6 3c.3 2.1 1.6 3.6 3.9 3.8v3a7 7 0 0 1-3.9-1.2v6.2A5.8 5.8 0 1 1 10.8 9v3.1a2.8 2.8 0 1 0 2.8 2.8V3h3Z" />
+        </svg>
+      );
+    case "youtube":
+      return (
+        <svg {...c} fill="currentColor">
+          <path d="M22 8.2a3 3 0 0 0-2.1-2.1C18 5.6 12 5.6 12 5.6s-6 0-7.9.5A3 3 0 0 0 2 8.2 31 31 0 0 0 1.6 12c0 1.3.1 2.6.4 3.8a3 3 0 0 0 2.1 2.1c1.9.5 7.9.5 7.9.5s6 0 7.9-.5a3 3 0 0 0 2.1-2.1c.3-1.2.4-2.5.4-3.8 0-1.3-.1-2.6-.4-3.8ZM10 15V9l5.2 3L10 15Z" />
+        </svg>
+      );
+    default:
+      return <span className="text-xs font-semibold uppercase">{name.slice(0, 2)}</span>;
+  }
 }

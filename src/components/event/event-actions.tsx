@@ -21,7 +21,7 @@ function endOf(event: EventDetail) {
   return new Date(Date.parse(event.startsAt) + minutes * 60000).toISOString();
 }
 
-export function EventActions({ event, locale }: { event: EventDetail; locale: Locale }) {
+export function EventActions({ event, locale, className = "mt-6 space-y-2 border-t border-line pt-5" }: { event: EventDetail; locale: Locale; className?: string }) {
   const l = L[locale];
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -72,7 +72,7 @@ export function EventActions({ event, locale }: { event: EventDetail; locale: Lo
   const btn = "flex w-full items-center justify-between rounded-btn border border-line-strong px-4 py-2.5 text-sm text-fg transition-colors hover:border-coral hover:text-coral";
 
   return (
-    <div className="mt-6 space-y-2 border-t border-line pt-5">
+    <div className={className}>
       <div className="relative">
         <button type="button" className={btn} onClick={() => setOpen((v) => !v)} aria-expanded={open}>
           {l.calendar} <span aria-hidden>{open ? "−" : "+"}</span>
