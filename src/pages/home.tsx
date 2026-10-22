@@ -112,31 +112,39 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
             </Link>
           </Reveal>
 
-          {stats.length > 0 ? (
-            <Stagger as="dl" className="grid grid-cols-2 gap-px self-center overflow-hidden rounded-card bg-line">
-              {stats.map((stat) => (
-                <StaggerItem key={stat.id} className="bg-ink p-6">
-                  <dt className="font-display text-3xl font-bold text-coral md:text-[40px]">
-                    <CountUp value={stat.value} />
-                  </dt>
-                  <dd className="mt-2 text-sm text-fg-muted">{stat.label}</dd>
-                </StaggerItem>
-              ))}
-            </Stagger>
-          ) : (
-            <Reveal delay={0.15} className="grain relative hidden aspect-[4/3] self-center overflow-hidden rounded-card md:block">
-              <div className="absolute inset-0 bg-[radial-gradient(120%_90%_at_50%_0%,#ff9f22_0%,#e2401a_28%,#8a1206_60%,#2a0803_100%)]" />
-              <div className="absolute inset-0 flex items-end p-8">
-                <p className="relative z-[2] font-display text-2xl font-bold uppercase leading-tight text-white">
-                  Music
-                  <br />
-                  People
-                  <br />
-                  Emotions
-                </p>
-              </div>
+          <div className="flex flex-col gap-5 self-center">
+            {/* Живое фото с Движ Феста: огонь сцены в тон кораллу. */}
+            <Reveal delay={0.1} className="grain group relative aspect-[4/3] overflow-hidden rounded-card bg-surface">
+              <img
+                src="/reports/dvizh-fest/01.jpg"
+                alt="Движ Фест"
+                loading="lazy"
+                decoding="async"
+                className="absolute inset-0 h-full w-full object-cover transition-transform duration-[1200ms] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.04]"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-ink-deep/90 via-ink-deep/20 to-transparent" />
+              <p className="absolute inset-x-0 bottom-0 z-[2] p-7 font-display text-xl font-bold uppercase leading-tight text-white md:text-2xl">
+                Music
+                <br />
+                People
+                <br />
+                Emotions
+              </p>
             </Reveal>
-          )}
+
+            {stats.length > 0 && (
+              <Stagger as="dl" className="grid grid-cols-2 gap-px overflow-hidden rounded-card bg-line">
+                {stats.map((stat) => (
+                  <StaggerItem key={stat.id} className="bg-ink p-6">
+                    <dt className="font-display text-3xl font-bold text-coral md:text-[40px]">
+                      <CountUp value={stat.value} />
+                    </dt>
+                    <dd className="mt-2 text-sm text-fg-muted">{stat.label}</dd>
+                  </StaggerItem>
+                ))}
+              </Stagger>
+            )}
+          </div>
         </div>
       </Section>
 
