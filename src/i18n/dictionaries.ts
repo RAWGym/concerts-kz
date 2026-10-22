@@ -183,8 +183,7 @@ const ru = {
   },
   contacts: {
     phone: "+7 700 258 62 49",
-    // Почта появится, когда заказчик её пришлёт.
-    email: "" as string,
+    email: "barsuklighter@gmail.com" as string,
     phoneLabel: "Телефон",
     emailLabel: "Почта",
     addressLabel: "Адрес",
@@ -432,8 +431,7 @@ const kz: Dictionary = {
   },
   contacts: {
     phone: "+7 700 258 62 49",
-    // Почта появится, когда заказчик её пришлёт.
-    email: "" as string,
+    email: "barsuklighter@gmail.com" as string,
     phoneLabel: "Телефон",
     emailLabel: "Пошта",
     addressLabel: "Мекенжай",
@@ -678,8 +676,7 @@ const en: Dictionary = {
   },
   contacts: {
     phone: "+7 700 258 62 49",
-    // Почта появится, когда заказчик её пришлёт.
-    email: "" as string,
+    email: "barsuklighter@gmail.com" as string,
     phoneLabel: "Phone",
     emailLabel: "E-mail",
     addressLabel: "Address",

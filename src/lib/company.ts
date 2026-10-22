@@ -9,6 +9,7 @@ export const company = {
   bik: "CASPKZKA",
   account: "KZ46722S000054248689",
   phone: "+7 700 258 62 49",
+  email: "barsuklighter@gmail.com",
   site: "concerts.kz",
 } as const;
 
