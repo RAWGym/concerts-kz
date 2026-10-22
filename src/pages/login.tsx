@@ -8,12 +8,22 @@ import { EASE_OUT } from "@/components/motion/reveal";
 import { fill, getAccountDictionary } from "@/i18n/account";
 import { defaultLocale, isLocale } from "@/i18n/config";
 import { localePath } from "@/i18n/routing";
+import { CodeInput } from "@/components/account/code-input";
+import { onboardingLabels } from "@/i18n/onboarding";
 import { authRedirect, isStaff } from "@/lib/account/api";
+import {
+  CODE_LENGTH,
+  getAuthProviders,
+  isOnboarded,
+  sendEmailCode,
+  signInWithGoogle,
+  verifyEmailCode,
+} from "@/lib/account/auth";
 import { useSession } from "@/lib/account/session";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 
-type Mode = "login" | "signup" | "reset";
+type Mode = "login" | "signup" | "code" | "reset";
 type Notice = { kind: "error" | "ok"; text: string } | null;
 
 /**
@@ -24,6 +34,7 @@ export default function LoginPage() {
   const params = useParams();
   const locale = params.locale && isLocale(params.locale) ? params.locale : defaultLocale;
   const t = getAccountDictionary(locale).login;
+  const o = onboardingLabels[locale];
   const navigate = useNavigate();
   const [search] = useSearchParams();
   const session = useSession();
@@ -32,6 +43,22 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
+  // Вход по коду: сначала e-mail, потом код из письма.
+  const [codeSent, setCodeSent] = useState(false);
+  const [code, setCode] = useState("");
+  const [codeError, setCodeError] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+  const [google, setGoogle] = useState(false);
+
+  useEffect(() => {
+    if (isSupabaseConfigured) void getAuthProviders().then((p) => setGoogle(p.google));
+  }, []);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const id = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(id);
+  }, [cooldown]);
 
   useEffect(() => {
     document.title = `${mode === "signup" ? t.titleSignup : t.title} · Concerts Prod`;
@@ -40,12 +67,78 @@ export default function LoginPage() {
   const next = search.get("next");
   const accountPath = localePath(locale, "/account");
   const after = next && next.startsWith("/") && !next.startsWith("//") ? next : accountPath;
+  const welcome = `${localePath(locale, "/welcome")}?next=${encodeURIComponent(after)}`;
+  const byCode = mode === "signup" || mode === "code";
 
   if (session.status === "user") return <Navigate to={after} replace />;
 
   function switchMode(m: Mode) {
     setMode(m);
     setNotice(null);
+    setCodeSent(false);
+    setCode("");
+    setCodeError(false);
+  }
+
+  function requestCode() {
+    if (!email || !/.+@.+\..+/.test(email)) {
+      document.querySelector<HTMLInputElement>("input[name=email]")?.reportValidity();
+      return;
+    }
+    void run(async () => {
+      try {
+        await sendEmailCode(email);
+      } catch (e) {
+        const status = (e as { status?: number }).status;
+        setNotice({ kind: "error", text: status === 429 ? o.tooMany : t.errorGeneric });
+        return;
+      }
+      setCodeSent(true);
+      setCode("");
+      setCooldown(60);
+    });
+  }
+
+  function resend() {
+    void run(async () => {
+      try {
+        await sendEmailCode(email);
+        setNotice({ kind: "ok", text: o.resent });
+        setCooldown(60);
+      } catch {
+        setNotice({ kind: "error", text: o.tooMany });
+      }
+    });
+  }
+
+  function confirm(value = code) {
+    if (value.length !== CODE_LENGTH) return;
+    void run(async () => {
+      try {
+        const user = await verifyEmailCode(email, value);
+        if (isOnboarded(user.user_metadata)) {
+          navigate((await isStaff(user.id)) && !next ? "/admin" : after, { replace: true });
+        } else {
+          navigate(welcome, { replace: true });
+        }
+      } catch {
+        setCodeError(true);
+        setNotice({ kind: "error", text: o.wrongCode });
+        setTimeout(() => setCodeError(false), 400);
+      }
+    });
+  }
+
+  function onCode(v: string) {
+    setCode(v);
+    setNotice(null);
+    if (v.length === CODE_LENGTH) confirm(v);
+  }
+
+  function google_() {
+    void run(async () => {
+      await signInWithGoogle(authRedirect(welcome));
+    });
   }
 
   async function run(action: () => Promise<void>) {
@@ -66,9 +159,13 @@ export default function LoginPage() {
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (byCode) {
+      if (codeSent) confirm();
+      else requestCode();
+      return;
+    }
     const form = new FormData(event.currentTarget);
     const password = String(form.get("password") ?? "");
-    const fullName = String(form.get("name") ?? "").trim();
     const client = isSupabaseConfigured ? createBrowserSupabase() : null;
 
     void run(async () => {
@@ -84,25 +181,6 @@ export default function LoginPage() {
         return;
       }
 
-      if (mode === "signup") {
-        if (password.length < 8) {
-          setNotice({ kind: "error", text: t.errorShort });
-          return;
-        }
-        const { data, error } = await client.auth.signUp({
-          email,
-          password,
-          options: {
-            data: { full_name: fullName },
-            emailRedirectTo: authRedirect(accountPath),
-          },
-        });
-        if (error) throw error;
-        if (data.session) navigate(after, { replace: true });
-        else setNotice({ kind: "ok", text: fill(t.signupSent, { email }) });
-        return;
-      }
-
       const { error } = await client.auth.resetPasswordForEmail(email, {
         redirectTo: authRedirect(`${accountPath}?tab=profile`),
       });
@@ -111,22 +189,18 @@ export default function LoginPage() {
     });
   }
 
-  function sendMagicLink() {
-    if (!email || !/.+@.+\..+/.test(email)) {
-      document.querySelector<HTMLInputElement>("input[name=email]")?.reportValidity();
-      return;
-    }
-    void run(async () => {
-      const { error } = await createBrowserSupabase().auth.signInWithOtp({
-        email,
-        options: { emailRedirectTo: authRedirect(after) },
-      });
-      if (error) throw error;
-      setNotice({ kind: "ok", text: fill(t.magicSent, { email }) });
-    });
-  }
-
-  const heading = mode === "signup" ? t.titleSignup : mode === "reset" ? t.titleReset : t.title;
+  const heading = codeSent
+    ? o.codeTitle
+    : mode === "signup"
+      ? t.titleSignup
+      : mode === "reset"
+        ? t.titleReset
+        : t.title;
+  const lead = codeSent
+    ? fill(o.codeLead, { email, length: String(CODE_LENGTH) })
+    : mode === "signup"
+      ? o.signupLead
+      : t.lead;
 
   return (
     <div className="mx-auto grid w-full max-w-7xl gap-6 px-4 sm:px-6 pb-20 pt-6 md:pt-10 lg:grid-cols-[1.05fr_1fr] lg:gap-10">
@@ -183,7 +257,25 @@ export default function LoginPage() {
         className="flex flex-col justify-center rounded-[22px] border border-line bg-surface/40 p-6 sm:p-10"
       >
         <div className="mx-auto w-full max-w-sm">
-          <p className="overline">{t.overline}</p>
+          {mode === "signup" ? (
+            <div className="mb-5">
+              <p className="overline">{fill(o.step, { n: codeSent ? "2" : "1" })}</p>
+              <div className="mt-3 grid grid-cols-3 gap-1.5">
+                {[1, 2, 3].map((n) => (
+                  <span key={n} className="h-1 overflow-hidden rounded-full bg-line">
+                    <motion.span
+                      className="block h-full bg-coral"
+                      initial={false}
+                      animate={{ width: n <= (codeSent ? 2 : 1) ? "100%" : "0%" }}
+                      transition={{ duration: 0.5, ease: EASE_OUT }}
+                    />
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p className="overline">{t.overline}</p>
+          )}
           <AnimatePresence mode="wait" initial={false}>
             <motion.h1
               key={heading}
@@ -196,9 +288,9 @@ export default function LoginPage() {
               {heading}
             </motion.h1>
           </AnimatePresence>
-          <p className="mt-3 text-sm leading-6 text-fg-muted">{t.lead}</p>
+          <p className="mt-3 text-sm leading-6 text-fg-muted">{lead}</p>
 
-          {mode !== "reset" && (
+          {(mode === "login" || mode === "signup") && !codeSent && (
             <div role="tablist" className="mt-8 grid grid-cols-2 rounded-full border border-line bg-ink p-1">
               {(["login", "signup"] as const).map((m) => (
                 <button
@@ -224,50 +316,69 @@ export default function LoginPage() {
             </div>
           )}
 
-          <form onSubmit={onSubmit} className="mt-7 space-y-5" noValidate={false}>
-            <AnimatePresence initial={false}>
-              {mode === "signup" && (
-                <Collapse key="name">
-                  <label className="block">
-                    <span className="field-label">{t.name}</span>
-                    <input name="name" autoComplete="name" required className="field" />
-                  </label>
-                </Collapse>
-              )}
-            </AnimatePresence>
+          {google && (mode === "login" || mode === "signup") && !codeSent && (
+            <div className="mt-7">
+              <button type="button" onClick={google_} disabled={busy} className="btn btn-secondary w-full !normal-case !tracking-normal">
+                <GoogleIcon />
+                {o.google}
+              </button>
+              <div className="mt-5 flex items-center gap-4 text-[11px] uppercase tracking-[0.14em] text-fg-faint">
+                <span className="h-px flex-1 bg-line" />
+                {t.or}
+                <span className="h-px flex-1 bg-line" />
+              </div>
+            </div>
+          )}
 
-            <label className="block">
-              <span className="field-label">{t.email}</span>
-              <input
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="field"
-                placeholder="you@mail.kz"
-              />
-            </label>
+          <form onSubmit={onSubmit} className={`${google && !codeSent && mode !== "reset" && mode !== "code" ? "mt-5" : "mt-7"} space-y-5`}>
+            {byCode && codeSent ? (
+              <motion.div initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.35, ease: EASE_OUT }} className="space-y-4">
+                <CodeInput value={code} onChange={onCode} length={CODE_LENGTH} disabled={busy} invalid={codeError} />
+                <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                  <button type="button" onClick={() => { setCodeSent(false); setNotice(null); }} className="text-fg-muted transition-colors hover:text-coral">
+                    ← {o.changeEmail}
+                  </button>
+                  {cooldown > 0 ? (
+                    <span className="text-fg-subtle">{fill(o.resendIn, { s: String(cooldown) })}</span>
+                  ) : (
+                    <button type="button" onClick={resend} disabled={busy} className="text-coral hover:underline">
+                      {o.resend}
+                    </button>
+                  )}
+                </div>
+                <p className="text-xs text-fg-subtle">{o.checkSpam}</p>
+              </motion.div>
+            ) : (
+              <label className="block">
+                <span className="field-label">{t.email}</span>
+                <input
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="field"
+                  placeholder="you@mail.kz"
+                />
+              </label>
+            )}
 
             <AnimatePresence initial={false}>
-              {mode !== "reset" && (
+              {mode === "login" && (
                 <Collapse key="password">
                   <label className="block">
                     <span className="flex items-baseline justify-between">
                       <span className="field-label">{t.password}</span>
-                      {mode === "login" && (
-                        <button
-                          type="button"
-                          onClick={() => switchMode("reset")}
-                          className="text-xs text-fg-subtle transition-colors hover:text-coral"
-                        >
-                          {t.forgot}
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => switchMode("reset")}
+                        className="text-xs text-fg-subtle transition-colors hover:text-coral"
+                      >
+                        {t.forgot}
+                      </button>
                     </span>
-                    <PasswordInput isNew={mode === "signup"} />
-                    {mode === "signup" && <span className="mt-2 block text-xs text-fg-subtle">{t.passwordHint}</span>}
+                    <PasswordInput isNew={false} />
                   </label>
                 </Collapse>
               )}
@@ -292,26 +403,23 @@ export default function LoginPage() {
               )}
             </AnimatePresence>
 
-            <button type="submit" disabled={busy} className="btn btn-primary w-full disabled:cursor-wait disabled:opacity-60">
+            <button
+              type="submit"
+              disabled={busy || (byCode && codeSent && code.length !== CODE_LENGTH)}
+              className="btn btn-primary w-full disabled:cursor-wait disabled:opacity-60"
+            >
               {busy && <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />}
-              {mode === "signup" ? t.submitSignup : mode === "reset" ? t.submitReset : t.submitLogin}
+              {byCode ? (codeSent ? o.verify : o.getCode) : mode === "reset" ? t.submitReset : t.submitLogin}
             </button>
 
             {mode === "login" && (
-              <>
-                <div className="flex items-center gap-4 text-[11px] uppercase tracking-[0.14em] text-fg-faint">
-                  <span className="h-px flex-1 bg-line" />
-                  {t.or}
-                  <span className="h-px flex-1 bg-line" />
-                </div>
-                <button type="button" onClick={sendMagicLink} disabled={busy} className="btn btn-secondary w-full">
-                  <MailIcon />
-                  {t.magic}
-                </button>
-              </>
+              <button type="button" onClick={() => switchMode("code")} disabled={busy} className="btn btn-secondary w-full">
+                <MailIcon />
+                {o.codeLogin}
+              </button>
             )}
 
-            {mode === "reset" && (
+            {(mode === "reset" || mode === "code") && !codeSent && (
               <button
                 type="button"
                 onClick={() => switchMode("login")}
@@ -321,7 +429,7 @@ export default function LoginPage() {
               </button>
             )}
 
-            {mode === "signup" && (
+            {mode === "signup" && !codeSent && (
               <p className="text-xs leading-5 text-fg-subtle">
                 {renderTerms(t.terms, {
                   offer: (
@@ -384,6 +492,17 @@ function PasswordInput({ isNew }: { isNew: boolean }) {
         </svg>
       </button>
     </span>
+  );
+}
+
+function GoogleIcon() {
+  return (
+    <svg viewBox="0 0 48 48" className="h-[18px] w-[18px]" aria-hidden>
+      <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z" />
+      <path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
+      <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z" />
+      <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z" />
+    </svg>
   );
 }
 
