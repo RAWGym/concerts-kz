@@ -4,6 +4,9 @@ import { notFound } from "next/navigation";
 import { EventCard } from "@/components/event/event-card";
 import { EventPoster } from "@/components/event/event-poster";
 import { CinematicHero } from "@/components/hero/cinematic-hero";
+import { CountUp } from "@/components/motion/count-up";
+import { Marquee } from "@/components/motion/marquee";
+import { Reveal, Stagger, StaggerItem } from "@/components/motion/reveal";
 import { heroLabels, heroSlideFromEvent } from "@/components/hero/demo-slides";
 import { EmptyState, Section, SectionHeading } from "@/components/ui/section";
 import { isLocale } from "@/i18n/config";
@@ -18,7 +21,14 @@ import {
   getSiteStats,
 } from "@/lib/data/queries";
 import { formatNewsDate } from "@/lib/format";
+import type { Locale } from "@/i18n/config";
 
+/** География из дизайн-бука — бегущая строка под героем. */
+const geography: Record<Locale, string[]> = {
+  ru: ["Казахстан", "Россия", "Узбекистан", "Кыргызстан", "Таджикистан", "Армения"],
+  kz: ["Қазақстан", "Ресей", "Өзбекстан", "Қырғызстан", "Тәжікстан", "Армения"],
+  en: ["Kazakhstan", "Russia", "Uzbekistan", "Kyrgyzstan", "Tajikistan", "Armenia"],
+};
 
 export default async function HomePage({ params }: PageProps<"/[locale]">) {
   const { locale } = await params;
@@ -41,6 +51,22 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
       {/* ---------- герой ---------- */}
       <CinematicHero slides={heroSlideFromEvent(featured, locale, t)} labels={heroLabels(t)} />
 
+      {/* ---------- бегущая строка: где мы работаем ---------- */}
+      <div className="border-y border-line bg-ink-deep py-4" aria-label={geography[locale].join(", ")}>
+        <Marquee speed={45}>
+          {geography[locale].map((country) => (
+            <span key={country} aria-hidden className="flex items-center">
+              <span className="px-6 font-display text-sm font-semibold uppercase tracking-[0.18em] text-fg-muted md:text-base">
+                {country}
+              </span>
+              <svg viewBox="0 0 24 24" className="h-3 w-3 text-coral" fill="currentColor">
+                <path d="M12 0l2.6 9.4L24 12l-9.4 2.6L12 24l-2.6-9.4L0 12l9.4-2.6z" />
+              </svg>
+            </span>
+          ))}
+        </Marquee>
+      </div>
+
       {/* ---------- ближайшие события ----------
           Верхний отступ урезан: секция идёт сразу за баннером и не
           должна отваливаться от него пустотой. */}
@@ -57,26 +83,23 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
         {events.length === 0 ? (
           <EmptyState text={t.home.emptyEvents} />
         ) : (
-          <div className="grid grid-cols-2 gap-x-5 gap-y-10 md:grid-cols-3 lg:grid-cols-4">
+          <Stagger className="grid grid-cols-2 gap-x-5 gap-y-10 md:grid-cols-3 lg:grid-cols-4">
             {events.map((event) => (
-              <EventCard
-                key={event.id}
-                event={event}
-                locale={locale}
-                t={t}
-              />
+              <StaggerItem key={event.id}>
+                <EventCard event={event} locale={locale} t={t} />
+              </StaggerItem>
             ))}
-          </div>
+          </Stagger>
         )}
       </Section>
 
       {/* ---------- о компании и цифры ---------- */}
       <Section className="border-y border-line">
         <div className="grid gap-10 md:grid-cols-2 md:gap-16">
-          <div>
+          <Reveal>
             <p className="overline">{t.home.about}</p>
-            <h2 className="mt-2 font-display text-2xl font-semibold uppercase text-fg md:text-3xl">
-              Concerts Prod
+            <h2 className="mt-3 font-display text-3xl font-bold uppercase leading-[1.02] tracking-[-0.03em] text-fg md:text-[44px]">
+              We create <span className="text-coral">experiences</span> that stay
             </h2>
             <p className="mt-5 text-base leading-7 text-fg-muted">
               {t.home.aboutText}
@@ -87,18 +110,33 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
             >
               {t.actions.details}
             </Link>
-          </div>
+          </Reveal>
 
-          <dl className="grid grid-cols-2 gap-x-6 gap-y-8 self-center">
-            {stats.map((stat) => (
-              <div key={stat.id}>
-                <dt className="font-display text-3xl font-bold text-coral md:text-4xl">
-                  {stat.value}
-                </dt>
-                <dd className="mt-1 text-sm text-fg-muted">{stat.label}</dd>
+          {stats.length > 0 ? (
+            <Stagger as="dl" className="grid grid-cols-2 gap-px self-center overflow-hidden rounded-card bg-line">
+              {stats.map((stat) => (
+                <StaggerItem key={stat.id} className="bg-ink p-6">
+                  <dt className="font-display text-3xl font-bold text-coral md:text-[40px]">
+                    <CountUp value={stat.value} />
+                  </dt>
+                  <dd className="mt-2 text-sm text-fg-muted">{stat.label}</dd>
+                </StaggerItem>
+              ))}
+            </Stagger>
+          ) : (
+            <Reveal delay={0.15} className="grain relative hidden aspect-[4/3] self-center overflow-hidden rounded-card md:block">
+              <div className="absolute inset-0 bg-[radial-gradient(120%_90%_at_50%_0%,#ff9f22_0%,#e2401a_28%,#8a1206_60%,#2a0803_100%)]" />
+              <div className="absolute inset-0 flex items-end p-8">
+                <p className="relative z-[2] font-display text-2xl font-bold uppercase leading-tight text-white">
+                  Music
+                  <br />
+                  People
+                  <br />
+                  Emotions
+                </p>
               </div>
-            ))}
-          </dl>
+            </Reveal>
+          )}
         </div>
       </Section>
 
@@ -113,12 +151,12 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
             }}
           />
 
-          <div className="grid grid-cols-2 gap-5 lg:grid-cols-4">
+          <Stagger className="grid grid-cols-2 gap-5 lg:grid-cols-4">
             {reports.map((report) => (
+              <StaggerItem key={report.id}>
               <Link
-                key={report.id}
                 href={localePath(locale, `/reports/${report.slug}`)}
-                className="group relative aspect-[4/3] overflow-hidden rounded-card bg-surface"
+                className="group relative block aspect-[4/3] overflow-hidden rounded-card bg-surface"
               >
                 <EventPoster
                   src={report.coverUrl}
@@ -135,8 +173,9 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
                   )}
                 </div>
               </Link>
+              </StaggerItem>
             ))}
-          </div>
+          </Stagger>
         </Section>
       )}
 
@@ -151,12 +190,12 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
             }}
           />
 
-          <div className="grid gap-5 md:grid-cols-2">
+          <Stagger className="grid gap-5 md:grid-cols-2">
             {news.map((item) => (
+              <StaggerItem key={item.id}>
               <Link
-                key={item.id}
                 href={localePath(locale, `/news/${item.slug}`)}
-                className="rounded-card border border-line p-6 transition-colors hover:border-line-strong"
+                className="group block h-full rounded-card border border-line p-6 transition-[border-color,transform] duration-300 hover:-translate-y-0.5 hover:border-coral/50"
               >
                 {item.publishedAt && (
                   <p className="font-display text-[11px] font-semibold uppercase tracking-[0.12em] text-coral">
@@ -169,9 +208,13 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
                 <p className="mt-2 text-sm leading-6 text-fg-muted">
                   {item.excerpt}
                 </p>
+                <span className="mt-5 inline-block font-display text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-subtle transition-colors group-hover:text-coral">
+                  {t.actions.details} →
+                </span>
               </Link>
+              </StaggerItem>
             ))}
-          </div>
+          </Stagger>
         </Section>
       )}
 
@@ -197,20 +240,27 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
 
       {/* ---------- призыв к действию ---------- */}
       <Section className="border-t border-line">
-        <div className="rounded-card bg-[linear-gradient(120deg,#FF4D4D_0%,#c9322f_100%)] px-6 py-14 text-center md:px-16">
-          <h2 className="font-display text-2xl font-bold uppercase text-white md:text-3xl">
-            {t.home.ctaTitle}
-          </h2>
-          <p className="mx-auto mt-4 max-w-xl text-sm leading-6 text-white/85">
-            {t.home.ctaText}
-          </p>
-          <Link
-            href={localePath(locale, "/contacts")}
-            className="btn btn-dark mt-8"
-          >
-            {t.actions.leaveRequest}
-          </Link>
-        </div>
+        <Reveal>
+          <div className="grain group relative overflow-hidden rounded-[22px] bg-[linear-gradient(120deg,#FF4D4D_0%,#c9322f_100%)] px-6 py-16 text-center md:px-16 md:py-20">
+            {/* Мягкий блик, который медленно плывёт по плашке. */}
+            <div className="pointer-events-none absolute -left-1/4 top-0 h-full w-1/2 rotate-12 bg-white/10 blur-3xl transition-transform duration-[1.6s] ease-out group-hover:translate-x-[160%]" />
+            <svg aria-hidden viewBox="0 0 24 24" className="absolute right-8 top-8 h-6 w-6 text-white/40" fill="currentColor">
+              <path d="M12 0l2.6 9.4L24 12l-9.4 2.6L12 24l-2.6-9.4L0 12l9.4-2.6z" />
+            </svg>
+            <h2 className="relative z-[2] font-display text-3xl font-bold uppercase tracking-[-0.02em] text-white md:text-5xl">
+              {t.home.ctaTitle}
+            </h2>
+            <p className="relative z-[2] mx-auto mt-5 max-w-xl text-sm leading-6 text-white/85 md:text-base">
+              {t.home.ctaText}
+            </p>
+            <Link
+              href={localePath(locale, "/contacts")}
+              className="btn btn-dark relative z-[2] mt-9 hover:bg-ink-deep"
+            >
+              {t.actions.leaveRequest} →
+            </Link>
+          </div>
+        </Reveal>
       </Section>
     </>
   );

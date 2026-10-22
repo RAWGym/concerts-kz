@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { EventActions } from "@/components/event/event-actions";
 import { EventBadge } from "@/components/event/event-badge";
 import { EventPoster } from "@/components/event/event-poster";
+import { Reveal } from "@/components/motion/reveal";
 import { Section } from "@/components/ui/section";
 import { isLocale, locales } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
@@ -95,6 +96,7 @@ export default async function EventPage({
             priority
           />
           <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/90 to-ink/50" />
+          <div className="absolute inset-0 bg-[radial-gradient(70%_60%_at_85%_10%,rgba(255,77,77,0.22),transparent_70%)]" />
         </div>
 
         <div className="relative mx-auto max-w-6xl px-5 pb-14 pt-10">
@@ -105,6 +107,7 @@ export default async function EventPage({
             ← {t.eventPage.backToEvents}
           </Link>
 
+          <Reveal>
           <div className="mt-10 flex flex-wrap items-center gap-3">
             <span className="chip chip-ghost">{t.categories[event.category]}</span>
             <EventBadge badge={event.badge} t={t} />
@@ -141,11 +144,30 @@ export default async function EventPage({
               <span className="text-sm text-fg-muted">{price}</span>
             )}
           </div>
+          </Reveal>
         </div>
       </section>
 
-      <Section>
-        <div className="grid gap-12 md:grid-cols-[1fr_280px]">
+      {/* Липкая панель покупки на телефоне: кнопка всегда под пальцем. */}
+      {!event.isSoldOut && (
+        <div className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-line bg-ink/85 backdrop-blur-xl md:hidden">
+          <div className="flex items-center justify-between gap-4 px-5 py-3">
+            <div className="min-w-0">
+              <p className="truncate font-display text-xs font-semibold uppercase text-fg">{event.title}</p>
+              {price && <p className="text-xs text-fg-muted">{price}</p>}
+            </div>
+            <Link
+              href={event.ticketonUrl ?? localePath(locale, `/events/${event.slug}/tickets`)}
+              className="btn btn-primary shrink-0 !px-5 !py-3"
+            >
+              {t.actions.buyTicket}
+            </Link>
+          </div>
+        </div>
+      )}
+
+      <Section padding="pt-16 pb-28 md:py-20">
+        <div className="grid gap-12 md:grid-cols-[1fr_300px]">
           <div className="space-y-12">
             {event.description && (
               <div>
@@ -190,7 +212,7 @@ export default async function EventPage({
             )}
           </div>
 
-          <aside className="h-fit rounded-card border border-line p-6">
+          <aside className="h-fit rounded-card border border-line bg-surface/30 p-6 md:sticky md:top-24">
             <dl className="space-y-5">
               {facts.map((fact) => (
                 <div key={fact.label}>
@@ -209,6 +231,18 @@ export default async function EventPage({
             )}
 
             <EventActions event={event} locale={locale} />
+
+            {!event.isSoldOut && (
+              <div className="mt-6 hidden border-t border-line pt-6 md:block">
+                {price && <p className="font-display text-lg font-bold text-fg">{price}</p>}
+                <Link
+                  href={event.ticketonUrl ?? localePath(locale, `/events/${event.slug}/tickets`)}
+                  className="btn btn-primary mt-4 w-full"
+                >
+                  {t.actions.buyTicket}
+                </Link>
+              </div>
+            )}
           </aside>
         </div>
       </Section>

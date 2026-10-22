@@ -13,6 +13,7 @@ import * as checkout from "@/pages/checkout";
 import * as legal from "@/pages/legal";
 import OrderPage from "@/pages/order";
 import LoginPage from "@/pages/login";
+import AccountPage from "@/pages/account";
 import * as news from "@/pages/news";
 import * as newsDetail from "@/pages/news-detail";
 import NotFound from "@/pages/not-found";
@@ -87,6 +88,7 @@ const router = createBrowserRouter([
           { path: "contacts", element: page(contacts) },
           { path: "legal/:doc", element: page(legal) },
           { path: "login", element: <LoginPage /> },
+          { path: "account", element: <AccountPage /> },
           { path: "*", element: <NotFound /> },
         ],
       },
