@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { PhotoBackdrop, PhotoStrip } from "@/components/ui/photo-strip";
 import { PageHeading, Section } from "@/components/ui/section";
 import { isLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
@@ -35,6 +36,15 @@ export default async function AboutPage({
   return (
     <Section>
       <PageHeading title={t.pages.aboutTitle} description={t.about.lead} />
+
+      <PhotoStrip
+        className="mb-14"
+        photos={[
+          { src: "/reports/leningrad/31.jpg", alt: "Ленинград" },
+          { src: "/reports/dvizh-fest/01.jpg", alt: "Движ Фест" },
+          { src: "/reports/leningrad/48.jpg", alt: "Ленинград" },
+        ]}
+      />
 
       {stats.length > 0 && (
         <dl className="grid grid-cols-2 gap-x-6 gap-y-10 border-y border-line py-12 md:grid-cols-4">
@@ -90,7 +100,9 @@ export default async function AboutPage({
         </ol>
       </div>
 
-      <div className="mt-14 rounded-card bg-surface px-6 py-12 md:px-12">
+      <div className="relative mt-14 overflow-hidden rounded-card bg-surface px-6 py-12 md:px-12 md:py-16">
+        <PhotoBackdrop src="/reports/dvizh-fest/02.jpg" />
+        <div className="relative">
         <h2 className="font-display text-2xl font-semibold uppercase text-fg">
           {t.home.ctaTitle}
         </h2>
@@ -103,6 +115,7 @@ export default async function AboutPage({
         >
           {t.actions.leaveRequest}
         </Link>
+        </div>
       </div>
     </Section>
   );

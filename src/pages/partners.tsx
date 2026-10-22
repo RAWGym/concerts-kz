@@ -3,6 +3,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 
 import { LeadForm } from "@/components/forms/lead-form";
+import { PhotoStrip } from "@/components/ui/photo-strip";
 import { PageHeading, Section } from "@/components/ui/section";
 import { isLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
@@ -38,6 +39,15 @@ export default async function PartnersPage({
       <PageHeading
         title={t.pages.partnersTitle}
         description={t.partnersPage.lead}
+      />
+
+      <PhotoStrip
+        className="mb-16"
+        photos={[
+          { src: "/reports/leningrad/32.jpg", alt: "Зрители на концерте" },
+          { src: "/reports/dvizh-fest/04.jpg", alt: "Движ Фест" },
+          { src: "/reports/leningrad/27.jpg", alt: "Ленинград" },
+        ]}
       />
 
       <div className="mb-16">
