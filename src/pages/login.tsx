@@ -13,10 +13,8 @@ import { onboardingLabels } from "@/i18n/onboarding";
 import { authRedirect, isStaff } from "@/lib/account/api";
 import {
   CODE_LENGTH,
-  getAuthProviders,
   isOnboarded,
   sendEmailCode,
-  signInWithGoogle,
   verifyEmailCode,
 } from "@/lib/account/auth";
 import { useSession } from "@/lib/account/session";
@@ -48,11 +46,6 @@ export default function LoginPage() {
   const [code, setCode] = useState("");
   const [codeError, setCodeError] = useState(false);
   const [cooldown, setCooldown] = useState(0);
-  const [google, setGoogle] = useState(false);
-
-  useEffect(() => {
-    if (isSupabaseConfigured) void getAuthProviders().then((p) => setGoogle(p.google));
-  }, []);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -133,12 +126,6 @@ export default function LoginPage() {
     setCode(v);
     setNotice(null);
     if (v.length === CODE_LENGTH) confirm(v);
-  }
-
-  function google_() {
-    void run(async () => {
-      await signInWithGoogle(authRedirect(welcome));
-    });
   }
 
   async function run(action: () => Promise<void>) {
@@ -316,21 +303,7 @@ export default function LoginPage() {
             </div>
           )}
 
-          {google && (mode === "login" || mode === "signup") && !codeSent && (
-            <div className="mt-7">
-              <button type="button" onClick={google_} disabled={busy} className="btn btn-secondary w-full !normal-case !tracking-normal">
-                <GoogleIcon />
-                {o.google}
-              </button>
-              <div className="mt-5 flex items-center gap-4 text-[11px] uppercase tracking-[0.14em] text-fg-faint">
-                <span className="h-px flex-1 bg-line" />
-                {t.or}
-                <span className="h-px flex-1 bg-line" />
-              </div>
-            </div>
-          )}
-
-          <form onSubmit={onSubmit} className={`${google && !codeSent && mode !== "reset" && mode !== "code" ? "mt-5" : "mt-7"} space-y-5`}>
+          <form onSubmit={onSubmit} className="mt-7 space-y-5">
             {byCode && codeSent ? (
               <motion.div initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.35, ease: EASE_OUT }} className="space-y-4">
                 <CodeInput value={code} onChange={onCode} length={CODE_LENGTH} disabled={busy} invalid={codeError} />
@@ -492,17 +465,6 @@ function PasswordInput({ isNew }: { isNew: boolean }) {
         </svg>
       </button>
     </span>
-  );
-}
-
-function GoogleIcon() {
-  return (
-    <svg viewBox="0 0 48 48" className="h-[18px] w-[18px]" aria-hidden>
-      <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z" />
-      <path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
-      <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z" />
-      <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z" />
-    </svg>
   );
 }
 

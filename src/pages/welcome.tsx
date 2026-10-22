@@ -16,7 +16,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/env";
 
 /**
  * Третий шаг регистрации: имя, телефон, город. Сюда приходят после
- * кода из письма и после входа через Google.
+ * кода из письма.
  */
 export default function WelcomePage() {
   const params = useParams();

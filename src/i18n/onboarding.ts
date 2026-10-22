@@ -3,7 +3,6 @@ import type { Locale } from "./config";
 /** Подписи пошаговой регистрации и входа по коду. */
 const ru = {
   step: "Шаг {n} из 3",
-  google: "Продолжить с Google",
   getCode: "Получить код",
   codeTitle: "Введите код",
   codeLead: "Отправили {length} цифр на {email}. Письмо приходит за несколько секунд.",
@@ -41,7 +40,6 @@ type Labels = typeof ru;
 
 const kz: Labels = {
   step: "{n}-қадам, барлығы 3",
-  google: "Google арқылы жалғастыру",
   getCode: "Код алу",
   codeTitle: "Кодты енгізіңіз",
   codeLead: "{email} поштасына {length} сан жібердік. Хат бірнеше секундта келеді.",
@@ -77,7 +75,6 @@ const kz: Labels = {
 
 const en: Labels = {
   step: "Step {n} of 3",
-  google: "Continue with Google",
   getCode: "Get code",
   codeTitle: "Enter the code",
   codeLead: "We sent {length} digits to {email}. It arrives in a few seconds.",

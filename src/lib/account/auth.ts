@@ -1,18 +1,8 @@
 import { createBrowserSupabase } from "@/lib/supabase/client";
-import { isSupabaseConfigured, supabaseAnonKey, supabaseUrl } from "@/lib/supabase/env";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
 
 /** Длина кода из письма. Должна совпадать с «Email OTP Length» в Supabase. */
 export const CODE_LENGTH = 6;
-
-/** Какие способы входа включены в Supabase. Google показываем только если он включён. */
-let settings: Promise<{ google: boolean }> | null = null;
-export function getAuthProviders() {
-  settings ??= fetch(`${supabaseUrl}/auth/v1/settings`, { headers: { apikey: supabaseAnonKey } })
-    .then((r) => (r.ok ? r.json() : {}))
-    .then((s: { external?: Record<string, boolean> }) => ({ google: Boolean(s.external?.google) }))
-    .catch(() => ({ google: false }));
-  return settings;
-}
 
 /** Шлёт на почту код входа. Новый пользователь создаётся автоматически. */
 export async function sendEmailCode(email: string) {
@@ -29,15 +19,6 @@ export async function verifyEmailCode(email: string, token: string) {
   const { data, error } = await createBrowserSupabase().auth.verifyOtp({ email, token, type: "email" });
   if (error || !data.user) throw error ?? new Error("no user");
   return data.user;
-}
-
-/** Вход через Google: уводит на Google и возвращает на redirectTo. */
-export async function signInWithGoogle(redirectTo: string) {
-  const { error } = await createBrowserSupabase().auth.signInWithOAuth({
-    provider: "google",
-    options: { redirectTo },
-  });
-  if (error) throw error;
 }
 
 /** Прошёл ли пользователь онбординг (имя, телефон, город). */
