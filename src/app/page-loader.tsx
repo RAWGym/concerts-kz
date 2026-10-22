@@ -61,7 +61,7 @@ export function AsyncPage({ module: mod }: { module: PageModule }) {
   const promise = load(key, () => mod.default(props));
 
   useEffect(() => {
-    window.scrollTo(0, 0);
+    window.scrollTo({ top: 0, behavior: "instant" });
     if (!mod.generateMetadata) {
       document.title = "Concerts Prod";
       return;
@@ -82,10 +82,22 @@ export function AsyncPage({ module: mod }: { module: PageModule }) {
   );
 }
 
+/** Пока страница грузит данные — контур будущей вёрстки, а не пустота. */
 function PageSkeleton() {
   return (
-    <div className="mx-auto flex min-h-[60vh] max-w-6xl items-center justify-center px-5">
-      <span className="h-8 w-8 animate-spin rounded-full border-2 border-line-strong border-t-coral" />
+    <div aria-busy className="mx-auto min-h-[70vh] max-w-6xl px-5 py-12">
+      <div className="skeleton h-3 w-28 rounded-full" />
+      <div className="skeleton mt-4 h-10 w-2/3 max-w-md rounded-btn" />
+      <div className="skeleton mt-3 h-4 w-1/2 max-w-sm rounded-full" />
+      <div className="mt-12 grid grid-cols-2 gap-5 md:grid-cols-3 lg:grid-cols-4">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className={i > 1 ? "hidden md:block" : ""}>
+            <div className="skeleton aspect-[3/4] rounded-card" />
+            <div className="skeleton mt-4 h-3 w-1/2 rounded-full" />
+            <div className="skeleton mt-3 h-4 w-3/4 rounded-full" />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

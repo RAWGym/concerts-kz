@@ -7,6 +7,7 @@ import { isActiveNavItem, type NavItem } from "./nav";
 import type { Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { localePath } from "@/i18n/routing";
+import { useSession } from "@/lib/account/session";
 
 /**
  * Боковая шторка навигации для экранов уже 1024px.
@@ -30,6 +31,7 @@ export function NavDrawer({
   title: string;
 }) {
   const closeRef = useRef<HTMLButtonElement>(null);
+  const session = useSession();
 
   useEffect(() => {
     if (!isOpen) return;
@@ -94,11 +96,17 @@ export function NavDrawer({
 
         <nav aria-label={title} className="flex-1 overflow-y-auto px-5 pb-6">
           <ul className="flex flex-col">
-            {items.map((item) => {
+            {items.map((item, i) => {
               const isActive = isActiveNavItem(pathname, item.href);
 
               return (
-                <li key={item.href}>
+                <li
+                  key={item.href}
+                  style={{ transitionDelay: isOpen ? `${120 + i * 45}ms` : "0ms" }}
+                  className={`transition-[opacity,transform] duration-500 ease-out motion-reduce:transition-none ${
+                    isOpen ? "translate-x-0 opacity-100" : "-translate-x-4 opacity-0"
+                  }`}
+                >
                   <Link
                     href={item.href}
                     onClick={onClose}
@@ -118,11 +126,11 @@ export function NavDrawer({
         <div className="safe-bottom flex items-center justify-between gap-4 border-t border-line px-5 py-5">
           <LocaleSwitcher current={locale} />
           <Link
-            href={localePath(locale, "/login")}
+            href={localePath(locale, session.status === "user" ? "/account" : "/login")}
             onClick={onClose}
             className="rounded-full border border-coral px-4 py-2 font-display text-[11px] font-semibold uppercase tracking-[0.08em] text-coral"
           >
-            {getDictionary(locale).auth.login}
+            {session.status === "user" ? getDictionary(locale).auth.account : getDictionary(locale).auth.login}
           </Link>
         </div>
       </div>

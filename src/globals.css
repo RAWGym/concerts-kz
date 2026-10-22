@@ -3,7 +3,7 @@
 /* ============================================================
    Дизайн-система Concerts Prod
    Фон #0D0D0D · акцент коралловый #FF4D4D
-   Заголовки Space Grotesk (uppercase) · текст Inter
+   Заголовки Unbounded (uppercase) · текст Inter
    ============================================================ */
 
 @theme {
@@ -29,10 +29,12 @@
 
   /* Типографика */
   /* Unbounded вместо Space Grotesk из прототипа: нужен акцидентный
-     шрифт с кириллицей, иначе ru/kz-заголовки остаются без него. */
-  --font-display: var(--font-unbounded), var(--font-inter), system-ui,
-    sans-serif;
-  --font-sans: var(--font-inter), system-ui, sans-serif;
+     шрифт с кириллицей, иначе ru/kz-заголовки остаются без него.
+     Шрифты грузятся из Google Fonts в index.html. Раньше здесь стояли
+     переменные next/font, которых в Vite нет, — из-за этого вся
+     типографика откатывалась на системный шрифт. */
+  --font-display: "Unbounded", "Inter", system-ui, sans-serif;
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
 
   /* Скругления */
   --radius-card: 14px;
@@ -66,6 +68,47 @@
     outline: 2px solid var(--color-coral);
     outline-offset: 2px;
   }
+
+  html {
+    scroll-behavior: smooth;
+    scrollbar-color: var(--color-line-strong) var(--color-ink-deep);
+  }
+
+  body {
+    font-feature-settings: "cv11", "ss01", "ss03";
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  ::selection {
+    background-color: var(--color-coral);
+    color: #fff;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--color-ink-deep);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-line-strong);
+    border-radius: 999px;
+    border: 2px solid var(--color-ink-deep);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-coral);
+  }
 }
 
 @layer utilities {
@@ -89,6 +132,9 @@
 
 @layer components {
   .overline {
+    /* Класс совпадает с утилитой Tailwind text-decoration: overline —
+       гасим линию над текстом. */
+    text-decoration-line: none !important;
     font-family: var(--font-display);
     font-weight: 600;
     font-size: 11px;
@@ -104,8 +150,8 @@
     gap: 9px;
     font-family: var(--font-display);
     font-weight: 600;
-    font-size: 13px;
-    letter-spacing: 0.04em;
+    font-size: 12px;
+    letter-spacing: 0.03em;
     text-transform: uppercase;
     border-radius: var(--radius-btn);
     padding: 15px 20px;
@@ -250,7 +296,147 @@
   }
 }
 
+/* ------------------------------------------------------------
+   Движение и фактура: бегущая строка, скелетоны, зерно,
+   поля форм и билет с перфорацией для личного кабинета.
+   ------------------------------------------------------------ */
+
+@layer components {
+  /* Бегущая строка: контент дублируется, лента едет на половину. */
+  .marquee {
+    display: flex;
+    width: max-content;
+    animation: marquee var(--marquee-speed, 38s) linear infinite;
+  }
+  .marquee-paused:hover .marquee {
+    animation-play-state: paused;
+  }
+
+  /* Скелетон с бегущим бликом вместо пустоты при загрузке. */
+  .skeleton {
+    position: relative;
+    overflow: hidden;
+    background-color: var(--color-surface);
+  }
+  .skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.05),
+      transparent
+    );
+    animation: shimmer 1.4s ease-in-out infinite;
+  }
+
+  /* Плёночное зерно поверх фото и градиентов. */
+  .grain::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.12;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    z-index: 1;
+  }
+
+  /* Ссылка с подчёркиванием, которое вырастает слева направо. */
+  .link-grow {
+    background-image: linear-gradient(currentColor, currentColor);
+    background-size: 0% 1px;
+    background-position: 0 100%;
+    background-repeat: no-repeat;
+    transition:
+      background-size 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+      color 0.2s ease;
+  }
+  .link-grow:hover {
+    background-size: 100% 1px;
+  }
+
+  /* Поле ввода в фирменном стиле: формы входа и профиля. */
+  .field {
+    width: 100%;
+    border-radius: var(--radius-btn);
+    border: 1px solid var(--color-line-strong);
+    background-color: var(--color-ink);
+    padding: 13px 16px;
+    font-size: 14px;
+    color: var(--color-fg);
+    outline: none;
+    transition:
+      border-color 0.18s ease,
+      box-shadow 0.18s ease,
+      background-color 0.18s ease;
+  }
+  .field::placeholder {
+    color: var(--color-fg-subtle);
+  }
+  .field:hover {
+    border-color: #4a4a4a;
+  }
+  .field:focus {
+    border-color: var(--color-coral);
+    box-shadow: 0 0 0 4px rgba(255, 77, 77, 0.14);
+  }
+  .field:disabled {
+    opacity: 0.6;
+  }
+  .field-label {
+    display: block;
+    margin-bottom: 8px;
+    font-family: var(--font-display);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-fg-subtle);
+  }
+
+  /* Корешок билета: полукруглые вырезы по краям линии отрыва. */
+  .ticket-notch {
+    position: relative;
+  }
+  .ticket-notch::before,
+  .ticket-notch::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    background-color: var(--notch-bg, var(--color-ink));
+    transform: translateY(-50%);
+  }
+  .ticket-notch::before {
+    left: -11px;
+  }
+  .ticket-notch::after {
+    right: -11px;
+  }
+}
+
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
   *,
   *::before,
   *::after {

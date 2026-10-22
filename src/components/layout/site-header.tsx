@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
 import { localePath } from "@/i18n/routing";
+import { initials, useSession } from "@/lib/account/session";
+import { motion } from "framer-motion";
 
 import { LocaleSwitcher } from "./locale-switcher";
 import { Logo } from "./logo";
@@ -66,7 +68,7 @@ export function SiteHeader({ locale, t }: { locale: Locale; t: Dictionary }) {
           {/* ---------- логотип ----------
               На узких экранах — absolute по центру между бургером и
               поиском. С lg встаёт в поток слева, перед пунктами. */}
-          <div className="pointer-events-none absolute inset-x-0 flex justify-center lg:static lg:inset-auto lg:block lg:shrink-0">
+          <div className="pointer-events-none absolute inset-x-0 flex justify-center lg:static lg:inset-auto lg:mr-6 lg:block lg:shrink-0">
             <Link
               href={localePath(locale)}
               aria-label="Concerts Prod"
@@ -81,7 +83,7 @@ export function SiteHeader({ locale, t }: { locale: Locale; t: Dictionary }) {
               и правой группой — они разной ширины, поэтому абсолютное
               центрирование по капсуле давало бы наложение на 1024px. */}
           <nav aria-label={t.nav.mainLabel} className="hidden lg:mx-auto lg:block">
-            <ul className="flex items-center gap-4 xl:gap-7">
+            <ul className="flex items-center gap-4 xl:gap-8">
               {items.map((item) => (
                 <NavLink key={item.href} item={item} pathname={pathname} />
               ))}
@@ -113,12 +115,7 @@ export function SiteHeader({ locale, t }: { locale: Locale; t: Dictionary }) {
               <LocaleSwitcher current={locale} />
             </div>
 
-            <Link
-              href={localePath(locale, "/login")}
-              className="ml-1 hidden rounded-full border border-coral px-4 py-2 font-display text-[11px] font-semibold uppercase tracking-[0.08em] text-coral transition-colors hover:bg-coral hover:text-white sm:inline-flex"
-            >
-              {t.auth.login}
-            </Link>
+            <AccountButton locale={locale} t={t} />
           </div>
         </div>
       </header>
@@ -135,21 +132,66 @@ export function SiteHeader({ locale, t }: { locale: Locale; t: Dictionary }) {
   );
 }
 
-/** Пункт капсулы: активный раздел горит кораллом. */
+/**
+ * Вход или аватар покупателя. Пока сессия проверяется, держим место
+ * пустым кругом, чтобы капсула не прыгала.
+ */
+function AccountButton({ locale, t }: { locale: Locale; t: Dictionary }) {
+  const session = useSession();
+
+  if (session.status === "loading") {
+    return <span aria-hidden className="ml-1 hidden h-9 w-9 rounded-full bg-surface-2/60 sm:block" />;
+  }
+
+  if (session.status === "user") {
+    return (
+      <Link
+        href={localePath(locale, "/account")}
+        aria-label={t.auth.account}
+        title={session.user.email}
+        className="ml-1 flex h-9 w-9 items-center justify-center rounded-full bg-[linear-gradient(135deg,#ff6b5b,#d6302c)] font-display text-[11px] font-bold text-white ring-2 ring-transparent transition-[box-shadow,transform] hover:scale-105 hover:ring-coral/40"
+      >
+        {initials(session.user)}
+      </Link>
+    );
+  }
+
+  return (
+    <Link
+      href={localePath(locale, "/login")}
+      className="ml-1 hidden items-center gap-2 rounded-full border border-coral px-4 py-2 font-display text-[11px] font-semibold uppercase tracking-[0.08em] text-coral transition-colors hover:bg-coral hover:text-white sm:inline-flex"
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-3.5 w-3.5" aria-hidden>
+        <circle cx="12" cy="8" r="4" />
+        <path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" strokeLinecap="round" />
+      </svg>
+      {t.auth.login}
+    </Link>
+  );
+}
+
+/** Пункт капсулы: активный раздел горит кораллом, под ним — точка. */
 function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
   const isActive = isActiveNavItem(pathname, item.href);
 
   return (
-    <li>
+    <li className="relative">
       <Link
         href={item.href}
         aria-current={isActive ? "page" : undefined}
-        className={`whitespace-nowrap font-display text-[11px] font-semibold uppercase tracking-[0.06em] transition-colors xl:text-[12px] xl:tracking-[0.08em] ${
-          isActive ? "text-coral" : "text-fg-muted hover:text-coral"
+        className={`link-grow whitespace-nowrap py-1 font-sans text-[12px] font-semibold uppercase tracking-[0.08em] xl:text-[12.5px] xl:tracking-[0.1em] ${
+          isActive ? "text-coral" : "text-fg-muted hover:text-fg"
         }`}
       >
         {item.label}
       </Link>
+      {isActive && (
+        <motion.span
+          layoutId="nav-active"
+          transition={{ type: "spring", stiffness: 380, damping: 30 }}
+          className="absolute -bottom-2 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-coral"
+        />
+      )}
     </li>
   );
 }

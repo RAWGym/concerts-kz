@@ -1,5 +1,8 @@
+import { motion, useReducedMotion } from "framer-motion";
 import { useEffect } from "react";
-import { Navigate, Outlet, useParams, useRouteError } from "react-router";
+import { Navigate, Outlet, useLocation, useParams, useRouteError } from "react-router";
+
+import { RouteProgress } from "@/components/motion/route-progress";
 
 import { Announcement } from "@/components/layout/announcement";
 import { SiteFooter } from "@/components/layout/site-footer";
@@ -37,6 +40,8 @@ export function LocaleRedirect() {
 
 export function SiteLayout() {
   const { locale = "" } = useParams();
+  const { pathname } = useLocation();
+  const reduce = useReducedMotion();
 
   useEffect(() => {
     if (isLocale(locale)) document.documentElement.lang = htmlLang[locale];
@@ -47,11 +52,22 @@ export function SiteLayout() {
 
   return (
     <>
+      <RouteProgress />
       <SiteHeader locale={locale} t={t} />
       {/* Компенсируем fixed-шапку: полноэкранные блоки гасят это
           отрицательным margin и уходят под капсулу. */}
       <main className="flex-1 pt-[68px] sm:pt-[72px]">
-        <Outlet />
+        {/* Переход между страницами: новая страница мягко всплывает.
+            Ключ — путь без query, чтобы смена вкладки в кабинете или
+            фильтра в афише не перерисовывала страницу целиком. */}
+        <motion.div
+          key={pathname}
+          initial={reduce ? false : { opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <Outlet />
+        </motion.div>
       </main>
       <SiteFooter locale={locale} t={t} />
       <Announcement locale={locale} />
