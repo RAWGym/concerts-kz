@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Navigate, Outlet, useParams, useRouteError } from "react-router";
 
+import { Announcement } from "@/components/layout/announcement";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { defaultLocale, htmlLang, isLocale, matchLocale, type Locale } from "@/i18n/config";
@@ -53,6 +54,7 @@ export function SiteLayout() {
         <Outlet />
       </main>
       <SiteFooter locale={locale} t={t} />
+      <Announcement locale={locale} />
     </>
   );
 }

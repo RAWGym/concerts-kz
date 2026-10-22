@@ -33,6 +33,8 @@ import AdminNews from "@/admin/news";
 import AdminReports from "@/admin/reports";
 import AdminPartners from "@/admin/partners";
 import AdminStats from "@/admin/stats";
+import AdminSettings from "@/admin/settings";
+import AdminAudit from "@/admin/audit";
 
 import "./globals.css";
 
@@ -59,6 +61,8 @@ const router = createBrowserRouter([
       { path: "reports", element: <AdminReports /> },
       { path: "partners", element: <AdminPartners /> },
       { path: "stats", element: <AdminStats /> },
+      { path: "settings", element: <AdminSettings /> },
+      { path: "audit", element: <AdminAudit /> },
     ],
   },
   {

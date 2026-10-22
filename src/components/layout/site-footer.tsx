@@ -6,12 +6,16 @@ import { localePath } from "@/i18n/routing";
 
 import { PaymentBadges } from "@/components/payment-badges";
 import { company } from "@/lib/company";
+import { contactsFor, socialLabels, useSiteSettings } from "@/lib/site-settings";
 
 import { Logo } from "./logo";
 import { mainNav } from "./nav";
 
 export function SiteFooter({ locale, t }: { locale: Locale; t: Dictionary }) {
   const year = new Date().getFullYear();
+  const settings = useSiteSettings();
+  const c = contactsFor(settings, t, locale);
+  const socials = Object.entries(settings.socials).filter(([, url]) => url) as [keyof typeof socialLabels, string][];
 
   return (
     <footer className="border-t border-line bg-ink-deep">
@@ -39,24 +43,40 @@ export function SiteFooter({ locale, t }: { locale: Locale; t: Dictionary }) {
           </nav>
 
           <address className="space-y-2 text-sm not-italic text-fg-muted">
-            <p>{t.footer.address}</p>
+            <p>{c.address}</p>
             <p>
               <a
-                href={`tel:${t.contacts.phone.replace(/[^\d+]/g, "")}`}
+                href={`tel:${c.phone.replace(/[^\d+]/g, "")}`}
                 className="transition-colors hover:text-coral"
               >
-                {t.contacts.phone}
+                {c.phone}
               </a>
             </p>
-            {t.contacts.email && (
+            {c.email && (
             <p>
               <a
-                href={`mailto:${t.contacts.email}`}
+                href={`mailto:${c.email}`}
                 className="transition-colors hover:text-coral"
               >
-                {t.contacts.email}
+                {c.email}
               </a>
             </p>
+            )}
+            {c.whatsapp && (
+              <p>
+                <a href={`https://wa.me/${c.whatsapp.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" className="transition-colors hover:text-coral">
+                  WhatsApp
+                </a>
+              </p>
+            )}
+            {socials.length > 0 && (
+              <p className="flex flex-wrap gap-x-4 gap-y-1 pt-2">
+                {socials.map(([k, url]) => (
+                  <a key={k} href={url} target="_blank" rel="noreferrer" className="transition-colors hover:text-coral">
+                    {socialLabels[k]}
+                  </a>
+                ))}
+              </p>
             )}
           </address>
         </div>

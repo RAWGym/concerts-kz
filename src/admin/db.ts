@@ -92,7 +92,8 @@ export function formatDateTime(iso: string | null, timeZone = "Asia/Almaty") {
 
 export function money(n: number | null | undefined, currency = "KZT") {
   if (n == null) return "—";
-  return new Intl.NumberFormat("ru-RU", { style: "currency", currency, maximumFractionDigits: 0 }).format(Number(n));
+  const sign: Record<string, string> = { KZT: "₸", KGS: "сом", UZS: "сум" };
+  return `${new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(Number(n))} ${sign[currency] ?? currency}`;
 }
 
 export function slugify(s: string) {

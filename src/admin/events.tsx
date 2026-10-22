@@ -25,6 +25,7 @@ export default function EventsList() {
   const staff = useStaff();
   const [rows, setRows] = useState<Row[] | null>(null);
   const [showPast, setShowPast] = useState(false);
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     let q = db()
@@ -38,6 +39,8 @@ export default function EventsList() {
   return (
     <>
       <PageTitle title="События">
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Поиск по названию или городу"
+          className="w-64 rounded-btn border border-line-strong bg-surface px-3 py-2 text-sm text-fg outline-none placeholder:text-fg-subtle focus:border-coral" />
         <button onClick={() => setShowPast((v) => !v)} className="btn btn-secondary">
           {showPast ? "Только ближайшие" : "Показать прошедшие"}
         </button>
@@ -50,7 +53,11 @@ export default function EventsList() {
         <p className="text-sm text-fg-muted">Событий пока нет.</p>
       ) : (
         <Table head={["Событие", "Дата", "Площадка", "Цена от", "Статус"]}>
-          {rows.map((e) => {
+          {rows.filter((e) => {
+            const q = query.trim().toLowerCase();
+            if (!q) return true;
+            return [e.slug, e.venue?.city, e.venue?.name, ...e.translations.map((t) => t.title)].some((v) => v?.toLowerCase().includes(q));
+          }).map((e) => {
             const title = e.translations.find((t) => t.locale === "ru")?.title ?? e.translations[0]?.title ?? e.slug;
             return (
               <tr key={e.id} className="hover:bg-surface/60">

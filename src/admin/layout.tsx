@@ -1,8 +1,9 @@
 import type { Session } from "@supabase/supabase-js";
 import { createContext, useContext, useEffect, useState } from "react";
-import { Link, NavLink, Navigate, Outlet, useNavigate } from "react-router";
+import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from "react-router";
 
 import { canEdit, db, roleLabels, type Role } from "./db";
+import { ToastProvider } from "./toast";
 import { Spinner } from "./ui";
 
 type Staff = { userId: string; email: string; role: Role; fullName: string | null };
@@ -20,6 +21,14 @@ export function AdminLayout() {
   const navigate = useNavigate();
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [staff, setStaff] = useState<Staff | null | undefined>(undefined);
+  const [newLeads, setNewLeads] = useState(0);
+  const location = useLocation();
+
+  useEffect(() => {
+    if (!staff) return;
+    db().from("leads").select("id", { count: "exact", head: true }).eq("status", "new")
+      .then(({ count }) => setNewLeads(count ?? 0));
+  }, [staff, location.pathname]);
 
   useEffect(() => {
     document.title = "Админка · Concerts Prod";
@@ -68,42 +77,80 @@ export function AdminLayout() {
     );
   }
 
-  const links: { to: string; label: string; show: boolean }[] = [
-    { to: "/admin", label: "Обзор", show: true },
-    { to: "/admin/events", label: "События", show: true },
-    { to: "/admin/venues", label: "Площадки", show: canEdit(staff.role) },
-    { to: "/admin/news", label: "Новости", show: canEdit(staff.role) },
-    { to: "/admin/reports", label: "Фотоотчёты", show: canEdit(staff.role) },
-    { to: "/admin/partners", label: "Партнёры", show: canEdit(staff.role) },
-    { to: "/admin/stats", label: "Цифры", show: canEdit(staff.role) },
-    { to: "/admin/orders", label: "Заказы", show: true },
-    { to: "/admin/leads", label: "Заявки", show: true },
-    { to: "/admin/staff", label: "Сотрудники", show: staff.role === "admin" },
+  const edit = canEdit(staff.role);
+  const isAdmin = staff.role === "admin";
+  const groups: { title: string; links: { to: string; label: string; show: boolean; badge?: number }[] }[] = [
+    {
+      title: "",
+      links: [{ to: "/admin", label: "Обзор", show: true }],
+    },
+    {
+      title: "Афиша",
+      links: [
+        { to: "/admin/events", label: "События", show: true },
+        { to: "/admin/venues", label: "Площадки", show: edit },
+      ],
+    },
+    {
+      title: "Продажи",
+      links: [
+        { to: "/admin/orders", label: "Заказы", show: true },
+        { to: "/admin/leads", label: "Заявки", show: true, badge: newLeads },
+      ],
+    },
+    {
+      title: "Контент",
+      links: [
+        { to: "/admin/news", label: "Новости", show: edit },
+        { to: "/admin/reports", label: "Фотоотчёты", show: edit },
+        { to: "/admin/partners", label: "Партнёры", show: edit },
+        { to: "/admin/stats", label: "Цифры", show: edit },
+      ],
+    },
+    {
+      title: "Управление",
+      links: [
+        { to: "/admin/staff", label: "Сотрудники", show: isAdmin },
+        { to: "/admin/settings", label: "Настройки сайта", show: isAdmin },
+        { to: "/admin/audit", label: "Журнал изменений", show: isAdmin },
+      ],
+    },
   ];
 
   return (
     <StaffContext.Provider value={staff}>
+      <ToastProvider>
       <div className="min-h-screen md:grid md:grid-cols-[230px_1fr]">
-        <aside className="border-b border-line bg-ink-deep px-5 py-5 md:sticky md:top-0 md:h-screen md:border-b-0 md:border-r">
+        <aside className="border-b border-line bg-ink-deep px-5 py-5 md:sticky md:top-0 md:flex md:h-screen md:flex-col md:overflow-y-auto md:border-b-0 md:border-r">
           <Link to="/" className="block">
             <img src="/logo-header.svg" alt="Concerts Prod" className="h-auto w-32" />
           </Link>
           <p className="mt-2 text-[11px] uppercase tracking-[0.12em] text-fg-subtle">Админка</p>
-          <nav className="mt-6 flex gap-1 overflow-x-auto md:flex-col">
-            {links.filter((l) => l.show).map((l) => (
-              <NavLink
-                key={l.to}
-                to={l.to}
-                end={l.to === "/admin"}
-                className={({ isActive }) =>
-                  `whitespace-nowrap rounded-btn px-3 py-2 text-sm transition-colors ${isActive ? "bg-coral/15 text-coral" : "text-fg-muted hover:bg-surface hover:text-fg"}`
-                }
-              >
-                {l.label}
-              </NavLink>
-            ))}
+          <nav className="mt-6 flex gap-1 overflow-x-auto pb-1 md:flex-col md:gap-0 md:overflow-visible">
+            {groups.map((g) => {
+              const shown = g.links.filter((l) => l.show);
+              if (!shown.length) return null;
+              return (
+                <div key={g.title || "main"} className="flex gap-1 md:mb-4 md:flex-col">
+                  {g.title && <p className="hidden px-3 pb-1 text-[10px] uppercase tracking-[0.14em] text-fg-faint md:block">{g.title}</p>}
+                  {shown.map((l) => (
+                    <NavLink
+                      key={l.to}
+                      to={l.to}
+                      end={l.to === "/admin"}
+                      className={({ isActive }) =>
+                        `flex items-center justify-between gap-2 whitespace-nowrap rounded-btn px-3 py-2 text-sm transition-colors ${isActive ? "bg-coral/15 text-coral" : "text-fg-muted hover:bg-surface hover:text-fg"}`
+                      }
+                    >
+                      {l.label}
+                      {!!l.badge && <span className="rounded-full bg-coral px-1.5 text-[10px] font-semibold leading-4 text-white">{l.badge}</span>}
+                    </NavLink>
+                  ))}
+                </div>
+              );
+            })}
           </nav>
-          <div className="mt-6 border-t border-line pt-4 text-xs text-fg-subtle md:absolute md:inset-x-5 md:bottom-5">
+          <div className="mt-6 border-t border-line pt-4 text-xs text-fg-subtle md:mt-auto">
             <p className="truncate text-fg-muted">{staff.fullName || staff.email}</p>
             <p className="mt-0.5">{roleLabels[staff.role]}</p>
             <div className="mt-3 flex gap-4">
@@ -117,6 +164,7 @@ export function AdminLayout() {
           <Outlet />
         </main>
       </div>
+      </ToastProvider>
     </StaffContext.Provider>
   );
 }

@@ -7,6 +7,7 @@ import { PageHeading, Section } from "@/components/ui/section";
 import { isLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { localePath } from "@/i18n/routing";
+import { contactsFor, getSiteSettings } from "@/lib/site-settings";
 
 export async function generateMetadata({
   params,
@@ -28,6 +29,7 @@ export default async function ContactsPage({
   if (!isLocale(locale)) notFound();
 
   const t = getDictionary(locale);
+  const c = contactsFor(await getSiteSettings(), t, locale);
 
   return (
     <Section>
@@ -41,25 +43,25 @@ export default async function ContactsPage({
             </dt>
             <dd className="mt-2">
               <a
-                href={`tel:${t.contacts.phone.replace(/[^\d+]/g, "")}`}
+                href={`tel:${c.phone.replace(/[^\d+]/g, "")}`}
                 className="font-display text-xl text-fg transition-colors hover:text-coral"
               >
-                {t.contacts.phone}
+                {c.phone}
               </a>
             </dd>
           </div>
 
-          {t.contacts.email && (
+          {c.email && (
           <div>
             <dt className="font-display text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-subtle">
               {t.contacts.emailLabel}
             </dt>
             <dd className="mt-2">
               <a
-                href={`mailto:${t.contacts.email}`}
+                href={`mailto:${c.email}`}
                 className="font-display text-xl text-fg transition-colors hover:text-coral"
               >
-                {t.contacts.email}
+                {c.email}
               </a>
             </dd>
           </div>
@@ -69,7 +71,7 @@ export default async function ContactsPage({
             <dt className="font-display text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-subtle">
               {t.contacts.addressLabel}
             </dt>
-            <dd className="mt-2 text-base text-fg-muted">{t.footer.address}</dd>
+            <dd className="mt-2 text-base text-fg-muted">{c.address}</dd>
           </div>
 
           <div>

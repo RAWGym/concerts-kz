@@ -1,9 +1,10 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Link, useNavigate, useParams } from "react-router";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 
 import { canEdit, db, fromLocalInput, slugify, toLocalInput } from "./db";
 import { statusLabel } from "./events";
 import { useStaff } from "./layout";
+import { useToast } from "./toast";
 import { Card, Field, Notice, PageTitle, Spinner, inputCls } from "./ui";
 
 const LOCALES = [
@@ -44,6 +45,9 @@ export default function EventEdit() {
   const staff = useStaff();
   const readOnly = !canEdit(staff.role);
   const navigate = useNavigate();
+  const toast = useToast();
+  const [search] = useSearchParams();
+  const copyFrom = isNew ? search.get("from") : null;
 
   const [venues, setVenues] = useState<Venue[]>([]);
   const [form, setForm] = useState<Form | null>(null);
@@ -61,7 +65,7 @@ export default function EventEdit() {
     const c = db();
     c.from("venues").select("id, name, city, timezone").order("city").then(({ data }) => setVenues((data ?? []) as Venue[]));
 
-    if (isNew) {
+    if (isNew && !copyFrom) {
       setForm({
         slug: "", status: "draft", category: "concert", venue_id: "", starts: "", doors: "", age_limit: "",
         poster_url: "", currency: "KZT", badge: "none", is_featured: false, is_sold_out: false, ticketon_url: "",
@@ -72,13 +76,13 @@ export default function EventEdit() {
 
     c.from("events")
       .select("*, venue:venues(timezone), translations:event_translations(*), cats:ticket_categories(*)")
-      .eq("id", id)
+      .eq("id", copyFrom ?? id)
       .single()
       .then(({ data: e, error }) => {
         if (error || !e) return setMsg({ kind: "error", text: "Событие не найдено" });
         const zone = e.venue?.timezone ?? "Asia/Almaty";
         setForm({
-          slug: e.slug, status: e.status, category: e.category, venue_id: e.venue_id ?? "",
+          slug: copyFrom ? `${e.slug}-copy` : e.slug, status: copyFrom ? "draft" : e.status, category: e.category, venue_id: e.venue_id ?? "",
           starts: toLocalInput(e.starts_at, zone), doors: toLocalInput(e.doors_open_at, zone),
           age_limit: e.age_limit?.toString() ?? "", poster_url: e.poster_url ?? "", currency: e.currency,
           badge: e.badge, is_featured: e.is_featured, is_sold_out: e.is_sold_out, ticketon_url: e.ticketon_url ?? "",
@@ -92,12 +96,12 @@ export default function EventEdit() {
           [...(e.cats ?? [])]
             .sort((a, b) => a.sort_order - b.sort_order)
             .map((k) => ({
-              id: k.id, code: k.code, name: k.name?.ru ?? k.code, price: String(Number(k.price)),
+              id: copyFrom ? undefined : k.id, code: k.code, name: k.name?.ru ?? k.code, price: String(Number(k.price)),
               available: k.available == null ? "" : String(k.available), max_per_order: String(k.max_per_order), is_active: k.is_active,
             })),
         );
       });
-  }, [id, isNew]);
+  }, [id, isNew, copyFrom]);
 
   if (!form) return msg ? <Notice kind="error">{msg.text}</Notice> : <Spinner />;
 
@@ -183,7 +187,7 @@ export default function EventEdit() {
     const err = trRes.error ?? catRes.error;
     if (err) return setMsg({ kind: "error", text: err.message });
     setRemovedCats([]);
-    setMsg({ kind: "ok", text: "Сохранено. На сайте изменения видны сразу." });
+    toast("Сохранено. На сайте изменения видны сразу.");
     if (isNew) navigate(`/admin/events/${eventId}`, { replace: true });
   }
 
@@ -196,8 +200,11 @@ export default function EventEdit() {
 
   return (
     <form onSubmit={onSubmit}>
-      <PageTitle title={isNew ? "Новое событие" : tr.ru.title || "Событие"}>
+      <PageTitle title={copyFrom ? "Копия события" : isNew ? "Новое событие" : tr.ru.title || "Событие"}>
         <Link to="/admin/events" className="btn btn-secondary">К списку</Link>
+        {!isNew && !readOnly && (
+          <Link to={`/admin/events/new?from=${id}`} className="btn btn-secondary">Копировать</Link>
+        )}
         {!isNew && form.status === "published" && (
           <a href={`/ru/events/${form.slug}`} target="_blank" rel="noreferrer" className="btn btn-secondary">Открыть на сайте</a>
         )}
