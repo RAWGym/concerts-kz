@@ -135,7 +135,7 @@ export default function AccountPage() {
       )}
 
       {/* ---------- вкладки ---------- */}
-      <nav className="no-scrollbar sticky top-[76px] z-30 -mx-4 mt-8 overflow-x-auto px-4 sm:-mx-6 sm:px-6 sm:top-[84px]">
+      <nav className="no-scrollbar sticky top-16 z-30 -mx-4 mt-8 overflow-x-auto px-4 sm:-mx-6 sm:px-6 lg:top-[72px]">
         <ul className="flex w-max gap-1 rounded-full border border-line bg-ink/80 p-1 backdrop-blur-xl">
           {TABS.map((key) => {
             const active = key === tab;
