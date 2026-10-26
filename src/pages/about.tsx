@@ -3,44 +3,15 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { PhotoBackdrop, PhotoStrip } from "@/components/ui/photo-strip";
-import { PageHeading, Section } from "@/components/ui/section";
+import { Section } from "@/components/ui/section";
 import { isLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { localePath } from "@/i18n/routing";
 import { EventPoster } from "@/components/event/event-poster";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion/reveal";
 import type { Locale } from "@/i18n/config";
+import { ARTISTS, COMPANY } from "@/i18n/company";
 import { getPhotoReports, getSiteStats } from "@/lib/data/queries";
-
-const ARTISTS = [
-  "Макс Корж", "Егор Крид", "Натан", "Ленинград", "Лобода", "OG Buda", "Mayot",
-  "Мияги & Эндшпиль", "T-Fest", "Пошлая Молли", "Macan", "Xcho", "Три дня дождя",
-  "Mary Gu", "Элджей", "Big Baby Tape", "Feduk", "Skally Milano",
-];
-
-const CLUB: Record<Locale, { over: string; lead: string; text: string; tags: string[]; cta: string }> = {
-  ru: {
-    over: "Собственная площадка",
-    lead: "Собственная концертная площадка Concerts Prod и ключевая часть нашей экосистемы.",
-    text: "Здесь проходят концерты, клубные события, специальные проекты и выступления артистов. Мы создаём пространство, где музыка, аудитория и энергия живого выступления объединяются в цельный и запоминающийся опыт.",
-    tags: ["Концерты", "Клубные события", "Спецпроекты", "Выступления артистов"],
-    cta: "События в Club Motor",
-  },
-  kz: {
-    over: "Өз алаңымыз",
-    lead: "Concerts Prod-тың өз концерттік алаңы және экожүйеміздің негізгі бөлігі.",
-    text: "Мұнда концерттер, клубтық кештер, арнайы жобалар мен әртістердің өнері өтеді. Біз музыка, аудитория және тірі өнердің энергиясы біртұтас әрі есте қаларлық тәжірибеге айналатын кеңістік жасаймыз.",
-    tags: ["Концерттер", "Клубтық кештер", "Арнайы жобалар", "Әртістер өнері"],
-    cta: "Club Motor іс-шаралары",
-  },
-  en: {
-    over: "Our own venue",
-    lead: "Concerts Prod's own concert venue and a key part of our ecosystem.",
-    text: "It hosts concerts, club nights, special projects and artist performances. We build a space where music, the audience and the energy of a live show come together into one memorable experience.",
-    tags: ["Concerts", "Club nights", "Special projects", "Artist performances"],
-    cta: "Events at Club Motor",
-  },
-};
 
 const L: Record<Locale, { projects: string; projectsLead: string; others: string; reports: string; all: string; geo: string; cis: string; europe: string; cisList: string[]; euList: string[] }> = {
   ru: {
@@ -91,7 +62,7 @@ export async function generateMetadata({
   const t = getDictionary(locale);
   return {
     title: t.pages.aboutTitle,
-    description: t.home.aboutText,
+    description: `${COMPANY[locale].lead} ${COMPANY[locale].intro[0]}`,
     alternates: { canonical: localePath(locale, "/about") },
   };
 }
@@ -105,11 +76,23 @@ export default async function AboutPage({
   const t = getDictionary(locale);
   const [stats, projects] = await Promise.all([getSiteStats(locale), getPhotoReports(locale)]);
   const l = L[locale];
-  const club = CLUB[locale];
+  const c = COMPANY[locale];
+  const club = c.club;
 
   return (
     <Section>
-      <PageHeading title={t.pages.aboutTitle} description={t.about.lead} />
+      {/* ---------- вступление ---------- */}
+      <div className="mb-12">
+        <p className="font-display text-[11px] font-semibold uppercase tracking-[0.14em] text-coral">{c.over}</p>
+        <h1 className="mt-4 max-w-4xl font-display text-3xl font-bold uppercase leading-[1.05] tracking-[-0.01em] text-fg md:text-5xl">
+          {c.lead}
+        </h1>
+        <div className="mt-8 grid gap-6 text-base leading-7 text-fg-muted md:grid-cols-3">
+          {c.intro.map((p) => (
+            <p key={p}>{p}</p>
+          ))}
+        </div>
+      </div>
 
       <PhotoStrip
         className="mb-14"
@@ -133,6 +116,37 @@ export default async function AboutPage({
         </dl>
       )}
 
+
+      {/* ---------- артисты и проекты ---------- */}
+      <div className="mt-16">
+        <h2 className="font-display text-xl font-semibold uppercase text-fg">{c.artistsTitle}</h2>
+        <p className="mt-2 text-sm text-fg-muted">{c.artistsLead}</p>
+        <Reveal>
+          <ul className="mt-8 flex flex-wrap items-baseline gap-x-5 gap-y-3 rounded-[20px] bg-surface p-6 ring-1 ring-line sm:gap-x-7 sm:p-10">
+            {ARTISTS.map((name, i) => (
+              <li
+                key={name}
+                className={`font-display font-bold uppercase leading-none tracking-tight transition-colors duration-300 hover:text-coral ${
+                  i % 3 === 0 ? "text-2xl text-fg sm:text-4xl" : i % 3 === 1 ? "text-xl text-fg/80 sm:text-3xl" : "text-lg text-fg/60 sm:text-2xl"
+                }`}
+              >
+                {name}
+              </li>
+            ))}
+            <li className="text-sm text-fg-muted sm:text-base">{c.others}</li>
+          </ul>
+        </Reveal>
+      </div>
+
+      {/* ---------- больше, чем концерты ---------- */}
+      <Reveal className="mt-16 grid gap-6 border-y border-line py-12 md:grid-cols-[1fr_1.4fr] md:gap-12">
+        <h2 className="font-display text-3xl font-bold uppercase leading-none text-fg md:text-5xl">{c.beyondTitle}</h2>
+        <div className="space-y-4 text-base leading-7 text-fg-muted">
+          {c.beyond.map((p) => (
+            <p key={p}>{p}</p>
+          ))}
+        </div>
+      </Reveal>
 
       {/* ---------- география ---------- */}
       <Reveal className="mt-16">
@@ -159,9 +173,28 @@ export default async function AboutPage({
         </div>
       </Reveal>
 
+      {/* ---------- экосистема ---------- */}
+      <div className="mt-16">
+        <h2 className="font-display text-xl font-semibold uppercase text-fg">{c.ecoTitle}</h2>
+        <div className="mt-4 grid max-w-4xl gap-4 text-base leading-7 text-fg-muted md:grid-cols-2">
+          {c.eco.map((p) => (
+            <p key={p}>{p}</p>
+          ))}
+        </div>
+        <Stagger className="mt-8 grid gap-4 md:grid-cols-3">
+          {c.ecoItems.map((item, i) => (
+            <StaggerItem key={item.title} className="rounded-[20px] bg-surface p-6 ring-1 ring-line md:p-7">
+              <span className="font-display text-sm font-bold tabular-nums text-coral">{String(i + 1).padStart(2, "0")}</span>
+              <h3 className="mt-4 font-display text-lg font-semibold uppercase text-fg">{item.title}</h3>
+              <p className="mt-2 text-sm leading-6 text-fg-muted">{item.text}</p>
+            </StaggerItem>
+          ))}
+        </Stagger>
+      </div>
+
       {/* ---------- Club Motor: собственная площадка ---------- */}
       <Reveal className="mt-16">
-        <div className="relative overflow-hidden rounded-[24px] bg-surface p-7 ring-1 ring-line sm:p-12">
+        <div id="club-motor" className="relative scroll-mt-24 overflow-hidden rounded-[24px] bg-surface p-7 ring-1 ring-line sm:p-12">
           <div aria-hidden className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-coral/20 blur-3xl" />
           <div className="relative grid gap-8 lg:grid-cols-[1.1fr_1fr] lg:items-center">
             <div>
@@ -187,26 +220,23 @@ export default async function AboutPage({
         </div>
       </Reveal>
 
-      {/* ---------- проекты: артисты + фотоотчёты из админки ---------- */}
-      <div className="mt-16">
-        <h2 className="font-display text-xl font-semibold uppercase text-fg">{l.projects}</h2>
-        <p className="mt-2 text-sm text-fg-muted">{l.projectsLead}</p>
-        <Reveal>
-          <ul className="mt-8 flex flex-wrap items-baseline gap-x-5 gap-y-3 rounded-[20px] bg-surface p-6 ring-1 ring-line sm:gap-x-7 sm:p-10">
-            {ARTISTS.map((name, i) => (
-              <li
-                key={name}
-                className={`font-display font-bold uppercase leading-none tracking-tight transition-colors duration-300 hover:text-coral ${
-                  i % 3 === 0 ? "text-2xl text-fg sm:text-4xl" : i % 3 === 1 ? "text-xl text-fg/80 sm:text-3xl" : "text-lg text-fg/60 sm:text-2xl"
-                }`}
-              >
-                {name}
-              </li>
+      {/* ---------- билетное агентство ---------- */}
+      <Reveal className="mt-6 grid gap-6 rounded-[24px] border border-line p-7 sm:p-12 lg:grid-cols-[1.1fr_1fr] lg:items-center">
+        <div>
+          <p className="font-display text-[11px] font-semibold uppercase tracking-[0.14em] text-coral">concerts.kz</p>
+          <h2 className="mt-3 font-display text-3xl font-bold uppercase leading-none text-fg sm:text-5xl">{c.ticketsTitle}</h2>
+        </div>
+        <div>
+          <div className="space-y-4 text-sm leading-7 text-fg-muted">
+            {c.tickets.map((p) => (
+              <p key={p}>{p}</p>
             ))}
-            <li className="text-sm text-fg-muted sm:text-base">{l.others}</li>
-          </ul>
-        </Reveal>
-      </div>
+          </div>
+          <Link href={localePath(locale, "/events")} className="btn btn-secondary mt-7">
+            {c.ticketsCta} →
+          </Link>
+        </div>
+      </Reveal>
 
       {projects.length > 0 && (
         <div className="mt-16">
@@ -286,6 +316,15 @@ export default async function AboutPage({
           ))}
         </ol>
       </div>
+
+      {/* ---------- слоган ---------- */}
+      <Reveal className="mt-20 text-center">
+        <p className="font-display text-[11px] font-semibold uppercase tracking-[0.14em] text-fg-subtle">Concerts Prod</p>
+        <p className="mx-auto mt-4 max-w-4xl font-display text-4xl font-bold uppercase leading-[0.95] text-fg md:text-7xl">
+          We create <span className="text-coral">unforgettable</span> shows.
+        </p>
+        <p className="mt-6 text-base text-fg-muted">{c.motto}</p>
+      </Reveal>
 
       <div className="relative mt-14 overflow-hidden rounded-card bg-surface px-6 py-12 md:px-12 md:py-16">
         <PhotoBackdrop src="/reports/dvizh-fest/02.jpg" />

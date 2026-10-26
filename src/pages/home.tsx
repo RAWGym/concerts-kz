@@ -8,6 +8,7 @@ import { DateStrip } from "@/components/home/date-strip";
 import { FeaturedCarousel } from "@/components/home/featured-carousel";
 import { CountUp } from "@/components/motion/count-up";
 import { Marquee } from "@/components/motion/marquee";
+import { ARTISTS, COMPANY } from "@/i18n/company";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion/reveal";
 import { EmptyState, Section, SectionHeading } from "@/components/ui/section";
 import { isLocale } from "@/i18n/config";
@@ -34,6 +35,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
 
+  const company = COMPANY[locale];
   const t = getDictionary(locale);
 
   const [upcoming, reports, news, partners, stats] = await Promise.all([
@@ -109,11 +111,11 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
           <Reveal>
             <p className="overline">{t.home.about}</p>
             <h2 className="mt-3 font-display text-3xl font-bold uppercase leading-[1.02] tracking-[-0.03em] text-fg md:text-[44px]">
-              We create <span className="text-coral">experiences</span> that stay
+              We create <span className="text-coral">unforgettable</span> shows
             </h2>
-            <p className="mt-5 text-base leading-7 text-fg-muted">
-              {t.home.aboutText}
-            </p>
+            <p className="mt-5 text-lg leading-7 text-fg">{company.lead}</p>
+            <p className="mt-3 text-base leading-7 text-fg-muted">{company.intro[0]}</p>
+            <p className="mt-3 text-base leading-7 text-fg-muted">{company.intro[2]}</p>
             <Link
               href={localePath(locale, "/about")}
               className="btn btn-secondary mt-7"
@@ -156,6 +158,54 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
             )}
           </div>
         </div>
+      </Section>
+
+      {/* ---------- артисты: бегущая строка ---------- */}
+      <div className="border-b border-line bg-ink-deep py-8 md:py-10" aria-label={`${company.artistsTitle}: ${ARTISTS.join(", ")}`}>
+        <p className="mb-5 text-center font-display text-[11px] font-semibold uppercase tracking-[0.14em] text-coral">
+          {company.artistsTitle}
+        </p>
+        <Marquee speed={60}>
+          {ARTISTS.map((name, i) => (
+            <span key={name} aria-hidden className="flex items-center">
+              <span className={`px-5 font-display text-2xl font-bold uppercase tracking-tight md:px-7 md:text-4xl ${i % 2 ? "text-fg/45" : "text-fg"}`}>
+                {name}
+              </span>
+              <svg viewBox="0 0 24 24" className="h-3 w-3 text-coral md:h-4 md:w-4" fill="currentColor">
+                <path d="M12 0l2.6 9.4L24 12l-9.4 2.6L12 24l-2.6-9.4L0 12l9.4-2.6z" />
+              </svg>
+            </span>
+          ))}
+        </Marquee>
+      </div>
+
+      {/* ---------- экосистема ---------- */}
+      <Section>
+        <div className="grid gap-6 md:grid-cols-[1fr_1.4fr] md:gap-12">
+          <Reveal>
+            <h2 className="font-display text-3xl font-bold uppercase leading-none text-fg md:text-[44px]">{company.ecoTitle}</h2>
+          </Reveal>
+          <Reveal delay={0.05} className="text-base leading-7 text-fg-muted">
+            <p>{company.eco[0]}</p>
+          </Reveal>
+        </div>
+        <Stagger className="mt-10 grid gap-4 md:grid-cols-3">
+          {company.ecoItems.map((item, i) => (
+            <StaggerItem key={item.title}>
+              <Link
+                href={i === 1 ? localePath(locale, "/about") + "#club-motor" : i === 2 ? localePath(locale, "/events") : localePath(locale, "/about")}
+                className="group flex h-full flex-col rounded-[20px] bg-surface p-6 ring-1 ring-line transition-[transform,box-shadow] duration-500 hover:-translate-y-1 hover:shadow-[0_24px_50px_-24px_rgba(255,77,77,0.5)] md:p-7"
+              >
+                <span className="font-display text-sm font-bold tabular-nums text-coral">{String(i + 1).padStart(2, "0")}</span>
+                <h3 className="mt-4 font-display text-lg font-semibold uppercase text-fg">{item.title}</h3>
+                <p className="mt-2 flex-1 text-sm leading-6 text-fg-muted">{item.text}</p>
+                <span className="mt-6 font-display text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-muted transition-colors group-hover:text-coral">
+                  {t.actions.details} →
+                </span>
+              </Link>
+            </StaggerItem>
+          ))}
+        </Stagger>
       </Section>
 
       {/* ---------- фотоотчёты ---------- */}
