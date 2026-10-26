@@ -21,7 +21,7 @@ copyFileSync("dist/index.html", "dist/404.html");
 
 const pages = {
   "": {
-    ru: ["Concerts Prod — концерты в Казахстане и России", "Организуем концерты и фестивали с 2015 года. Афиша, билеты онлайн, фотоотчёты."],
+    ru: ["Concerts Prod — концерты в Казахстане и России", "Концерты и фестивали с 2015 года в Казахстане, России, Кыргызстане, Узбекистане и Европе. Афиша, билеты онлайн, фотоотчёты."],
     kz: ["Concerts Prod — Қазақстан мен Ресейдегі концерттер", "2015 жылдан бері концерттер мен фестивальдер ұйымдастырамыз. Афиша, онлайн билеттер."],
     en: ["Concerts Prod — concerts in Kazakhstan and Russia", "Concerts and festivals since 2015. Events, tickets online, photo reports."],
   },
@@ -41,9 +41,9 @@ const pages = {
     en: ["News", "Concerts Prod news: announcements and on-sale dates."],
   },
   about: {
-    ru: ["О компании", "Concerts Prod организует концерты в Казахстане и России с 2015 года."],
+    ru: ["О компании", "Concerts Prod организует концерты с 2015 года в Казахстане, России, Кыргызстане, Узбекистане, Испании, Нидерландах и Германии."],
     kz: ["Компания туралы", "Concerts Prod 2015 жылдан бері концерттер ұйымдастырады."],
-    en: ["About us", "Concerts Prod has been producing concerts in Kazakhstan and Russia since 2015."],
+    en: ["About us", "Concerts Prod has produced concerts since 2015 in Kazakhstan, Russia, Kyrgyzstan, Uzbekistan, Spain, the Netherlands and Germany."],
   },
   partners: {
     ru: ["Партнёрам", "Площадкам, брендам и медиа: как мы работаем с партнёрами."],

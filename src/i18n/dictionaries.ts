@@ -32,7 +32,7 @@ const ru = {
     popular: "Популярное",
     about: "О компании",
     aboutText:
-      "С 2015 года организуем концерты любой сложности в Казахстане и России. Создаём события, которые остаются в памяти надолго.",
+      "С 2015 года организуем концерты любой сложности в Казахстане, России, Кыргызстане и Узбекистане, а также в Испании, Нидерландах и Германии. Создаём события, которые остаются в памяти надолго.",
     reports: "Фотоотчёты",
     news: "Новости",
     partners: "Партнёры",
@@ -110,7 +110,7 @@ const ru = {
     services: [
       {
         title: "Концерты и туры",
-        text: "Сольные шоу и гастрольные маршруты по Казахстану, Кыргызстану и Узбекистану: переговоры с артистом, райдер, логистика, площадка, билетная программа.",
+        text: "Сольные шоу и гастрольные маршруты по Казахстану, России, Кыргызстану и Узбекистану, а также в Европе — Испании, Нидерландах и Германии: переговоры с артистом, райдер, логистика, площадка, билетная программа.",
       },
       {
         title: "Фестивали и open air",
@@ -280,7 +280,7 @@ const kz: Dictionary = {
     popular: "Танымал",
     about: "Компания туралы",
     aboutText:
-      "2015 жылдан бері Қазақстан мен Ресейде кез келген деңгейдегі концерт ұйымдастырамыз. Ұзақ есте қалатын оқиғалар жасаймыз.",
+      "2015 жылдан бері Қазақстанда, Ресейде, Қырғызстанда және Өзбекстанда, сондай-ақ Испанияда, Нидерландта және Германияда кез келген деңгейдегі концерт ұйымдастырамыз. Ұзақ есте қалатын оқиғалар жасаймыз.",
     reports: "Фотоесептер",
     news: "Жаңалықтар",
     partners: "Серіктестер",
@@ -358,7 +358,7 @@ const kz: Dictionary = {
     services: [
       {
         title: "Концерттер мен турлар",
-        text: "Қазақстан, Қырғызстан және Өзбекстан бойынша жеке шоулар мен гастрольдік маршруттар: әртіспен келіссөз, райдер, логистика, алаң, билет бағдарламасы.",
+        text: "Қазақстан, Ресей, Қырғызстан және Өзбекстан бойынша, сондай-ақ Еуропада — Испания, Нидерланд және Германияда жеке шоулар мен гастрольдік маршруттар: әртіспен келіссөз, райдер, логистика, алаң, билет бағдарламасы.",
       },
       {
         title: "Фестивальдер мен open air",
@@ -525,7 +525,7 @@ const en: Dictionary = {
     popular: "Popular",
     about: "About us",
     aboutText:
-      "Since 2015 we have produced shows of any scale across Kazakhstan and Russia. Events that people remember for years.",
+      "Since 2015 we have produced shows of any scale in Kazakhstan, Russia, Kyrgyzstan and Uzbekistan, as well as Spain, the Netherlands and Germany. Events that people remember for years.",
     reports: "Photo reports",
     news: "News",
     partners: "Partners",
@@ -603,7 +603,7 @@ const en: Dictionary = {
     services: [
       {
         title: "Concerts and tours",
-        text: "Solo shows and touring routes across Kazakhstan, Kyrgyzstan and Uzbekistan: artist negotiations, rider, logistics, venue and ticketing.",
+        text: "Solo shows and touring routes across Kazakhstan, Russia, Kyrgyzstan and Uzbekistan, and in Europe — Spain, the Netherlands and Germany: artist negotiations, rider, logistics, venue and ticketing.",
       },
       {
         title: "Festivals and open airs",

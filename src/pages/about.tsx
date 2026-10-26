@@ -7,7 +7,55 @@ import { PageHeading, Section } from "@/components/ui/section";
 import { isLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { localePath } from "@/i18n/routing";
-import { getSiteStats } from "@/lib/data/queries";
+import { EventPoster } from "@/components/event/event-poster";
+import { Reveal, Stagger, StaggerItem } from "@/components/motion/reveal";
+import type { Locale } from "@/i18n/config";
+import { getPhotoReports, getSiteStats } from "@/lib/data/queries";
+
+const ARTISTS = [
+  "Макс Корж", "Егор Крид", "Натан", "Ленинград", "Лобода", "OG Buda", "Mayot",
+  "Мияги & Эндшпиль", "T-Fest", "Пошлая Молли", "Macan", "Xcho", "Три дня дождя",
+  "Mary Gu", "Элджей", "Big Baby Tape", "Feduk", "Skally Milano",
+];
+
+const L: Record<Locale, { projects: string; projectsLead: string; others: string; reports: string; all: string; geo: string; cis: string; europe: string; cisList: string[]; euList: string[] }> = {
+  ru: {
+    projects: "Проекты",
+    projectsLead: "Артисты, с которыми мы делали концерты и туры.",
+    others: "и другие артисты",
+    reports: "Фотоотчёты",
+    all: "Все фотоотчёты",
+    geo: "Где мы работали",
+    cis: "Казахстан и СНГ",
+    europe: "Европа",
+    cisList: ["Казахстан", "Россия", "Кыргызстан", "Узбекистан"],
+    euList: ["Испания", "Нидерланды", "Германия"],
+  },
+  kz: {
+    projects: "Жобалар",
+    projectsLead: "Біз концерттер мен турлар өткізген әртістер.",
+    others: "және басқа әртістер",
+    reports: "Фотоесептер",
+    all: "Барлық фотоесептер",
+    geo: "Қай елдерде жұмыс істедік",
+    cis: "Қазақстан және ТМД",
+    europe: "Еуропа",
+    cisList: ["Қазақстан", "Ресей", "Қырғызстан", "Өзбекстан"],
+    euList: ["Испания", "Нидерланд", "Германия"],
+  },
+  en: {
+    projects: "Projects",
+    projectsLead: "Artists we have produced concerts and tours with.",
+    others: "and many more",
+    reports: "Photo reports",
+    all: "All photo reports",
+    geo: "Where we have worked",
+    cis: "Kazakhstan & CIS",
+    europe: "Europe",
+    cisList: ["Kazakhstan", "Russia", "Kyrgyzstan", "Uzbekistan"],
+    euList: ["Spain", "Netherlands", "Germany"],
+  },
+};
 
 
 export async function generateMetadata({
@@ -31,7 +79,8 @@ export default async function AboutPage({
   if (!isLocale(locale)) notFound();
 
   const t = getDictionary(locale);
-  const stats = await getSiteStats(locale);
+  const [stats, projects] = await Promise.all([getSiteStats(locale), getPhotoReports(locale)]);
+  const l = L[locale];
 
   return (
     <Section>
@@ -57,6 +106,91 @@ export default async function AboutPage({
             </div>
           ))}
         </dl>
+      )}
+
+
+      {/* ---------- география ---------- */}
+      <Reveal className="mt-16">
+        <h2 className="font-display text-xl font-semibold uppercase text-fg">{l.geo}</h2>
+        <div className="mt-8 grid gap-4 sm:grid-cols-2">
+          {[
+            { title: l.cis, list: l.cisList },
+            { title: l.europe, list: l.euList },
+          ].map((g) => (
+            <div key={g.title} className="rounded-[20px] border border-line bg-surface/50 p-6 md:p-7">
+              <div className="flex items-baseline justify-between gap-4">
+                <p className="font-display text-sm font-semibold uppercase tracking-[0.08em] text-fg-muted">{g.title}</p>
+                <span className="font-display text-3xl font-bold text-coral">{g.list.length}</span>
+              </div>
+              <ul className="mt-5 flex flex-wrap gap-2">
+                {g.list.map((c) => (
+                  <li key={c} className="rounded-full border border-line-strong bg-ink/60 px-4 py-2 text-sm text-fg">
+                    {c}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </Reveal>
+
+      {/* ---------- проекты: артисты + фотоотчёты из админки ---------- */}
+      <div className="mt-16">
+        <h2 className="font-display text-xl font-semibold uppercase text-fg">{l.projects}</h2>
+        <p className="mt-2 text-sm text-fg-muted">{l.projectsLead}</p>
+        <Reveal>
+          <ul className="mt-8 flex flex-wrap items-baseline gap-x-5 gap-y-3 rounded-[20px] bg-surface p-6 ring-1 ring-line sm:gap-x-7 sm:p-10">
+            {ARTISTS.map((name, i) => (
+              <li
+                key={name}
+                className={`font-display font-bold uppercase leading-none tracking-tight transition-colors duration-300 hover:text-coral ${
+                  i % 3 === 0 ? "text-2xl text-fg sm:text-4xl" : i % 3 === 1 ? "text-xl text-fg/80 sm:text-3xl" : "text-lg text-fg/60 sm:text-2xl"
+                }`}
+              >
+                {name}
+              </li>
+            ))}
+            <li className="text-sm text-fg-muted sm:text-base">{l.others}</li>
+          </ul>
+        </Reveal>
+      </div>
+
+      {projects.length > 0 && (
+        <div className="mt-16">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <h2 className="font-display text-xl font-semibold uppercase text-fg">{l.reports}</h2>
+            <Link
+              href={localePath(locale, "/reports")}
+              className="font-display text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-muted transition-colors hover:text-coral"
+            >
+              {l.all} →
+            </Link>
+          </div>
+          <Stagger className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {projects.map((p) => (
+              <StaggerItem key={p.id}>
+                <Link
+                  href={localePath(locale, `/reports/${p.slug}`)}
+                  className="group relative block aspect-[4/3] overflow-hidden rounded-[20px] bg-surface ring-1 ring-line transition-[transform,box-shadow] duration-500 hover:-translate-y-1 hover:shadow-[0_24px_50px_-24px_rgba(255,77,77,0.5)]"
+                >
+                  <EventPoster src={p.coverUrl} alt={p.title} sizes="(max-width: 640px) 100vw, 33vw" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-ink-deep/95 via-ink-deep/30 to-transparent" />
+                  <div className="absolute inset-x-0 bottom-0 p-5">
+                    <p className="font-display text-lg font-bold uppercase leading-tight text-white">{p.title}</p>
+                    <p className="mt-1 text-sm text-white/70">
+                      {[p.city, p.shotOn ? new Date(p.shotOn).getFullYear() : null].filter(Boolean).join(" · ")}
+                    </p>
+                  </div>
+                  <span className="absolute right-4 top-4 grid h-10 w-10 place-items-center rounded-full bg-ink/70 text-white opacity-0 backdrop-blur transition-opacity duration-300 group-hover:opacity-100">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4" aria-hidden>
+                      <path d="M7 17 17 7M9 7h8v8" />
+                    </svg>
+                  </span>
+                </Link>
+              </StaggerItem>
+            ))}
+          </Stagger>
+        </div>
       )}
 
       <div className="mt-16">

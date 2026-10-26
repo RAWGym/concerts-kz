@@ -23,11 +23,11 @@ import {
 import { formatNewsDate } from "@/lib/format";
 import type { Locale } from "@/i18n/config";
 
-/** География из дизайн-бука — бегущая строка под героем. */
+/** Страны, где мы работали, — бегущая строка под лентой дат. */
 const geography: Record<Locale, string[]> = {
-  ru: ["Казахстан", "Россия", "Узбекистан", "Кыргызстан", "Таджикистан", "Армения"],
-  kz: ["Қазақстан", "Ресей", "Өзбекстан", "Қырғызстан", "Тәжікстан", "Армения"],
-  en: ["Kazakhstan", "Russia", "Uzbekistan", "Kyrgyzstan", "Tajikistan", "Armenia"],
+  ru: ["Казахстан", "Россия", "Кыргызстан", "Узбекистан", "Испания", "Нидерланды", "Германия"],
+  kz: ["Қазақстан", "Ресей", "Қырғызстан", "Өзбекстан", "Испания", "Нидерланд", "Германия"],
+  en: ["Kazakhstan", "Russia", "Kyrgyzstan", "Uzbekistan", "Spain", "Netherlands", "Germany"],
 };
 
 export default async function HomePage({ params }: PageProps<"/[locale]">) {
