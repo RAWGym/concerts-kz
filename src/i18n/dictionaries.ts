@@ -38,7 +38,7 @@ const ru = {
     partners: "Партнёры",
     ctaTitle: "Стать партнёром",
     ctaText:
-      "Площадки, бренды и медиа — расскажем, как мы работаем, и подберём формат сотрудничества.",
+      "Площадки, бренды и медиа: расскажем, как мы работаем, и подберём формат сотрудничества.",
     emptyEvents: "Афиша обновляется. Ближайшие события появятся здесь совсем скоро.",
   },
   categories: {
@@ -85,7 +85,7 @@ const ru = {
   },
   form: {
     title: "Оставить заявку",
-    text: "Расскажите о задаче — вернёмся с предложением.",
+    text: "Расскажите о задаче, и мы вернёмся с предложением.",
     type: "Тема обращения",
     typePartner: "Сотрудничество",
     typeArtist: "Я артист",
@@ -98,23 +98,23 @@ const ru = {
     message: "Сообщение",
     submit: "Отправить",
     sending: "Отправляем…",
-    success: "Заявка отправлена — свяжемся с вами в ближайшее время.",
+    success: "Заявка отправлена. Свяжемся с вами в ближайшее время.",
     error: "Не удалось отправить заявку. Попробуйте ещё раз.",
     nameRequired: "Представьтесь, пожалуйста.",
-    contactRequired: "Оставьте телефон или e-mail — иначе мы не сможем ответить.",
+    contactRequired: "Оставьте телефон или e-mail, иначе мы не сможем ответить.",
     disabled: "Форма заработает после подключения базы.",
   },
   about: {
-    lead: "Concerts Prod — концертное агентство полного цикла. Мы берём событие от первого разговора с артистом до момента, когда последний зритель выходит из зала, и отвечаем за каждый шаг между этими точками.",
+    lead: "Concerts Prod: концертное агентство полного цикла. Мы берём событие от первого разговора с артистом до момента, когда последний зритель выходит из зала, и отвечаем за каждый шаг между этими точками.",
     servicesTitle: "Что мы делаем",
     services: [
       {
         title: "Концерты и туры",
-        text: "Сольные шоу и гастрольные маршруты по Казахстану, России, Кыргызстану и Узбекистану, а также в Европе — Испании, Нидерландах и Германии: переговоры с артистом, райдер, логистика, площадка, билетная программа.",
+        text: "Сольные шоу и гастрольные маршруты по Казахстану, России, Кыргызстану и Узбекистану, а также в Европе: в Испании, Нидерландах и Германии: переговоры с артистом, райдер, логистика, площадка, билетная программа.",
       },
       {
         title: "Фестивали и open air",
-        text: "Многосценные события под открытым небом — от подбора лайн-апа и зонирования территории до служб безопасности и работы с городом.",
+        text: "Многосценные события под открытым небом: от подбора лайн-апа и зонирования территории до служб безопасности и работы с городом.",
       },
       {
         title: "Продакшн",
@@ -129,7 +129,7 @@ const ru = {
     steps: [
       {
         title: "Бриф",
-        text: "Обсуждаем артиста, город, бюджет и ожидаемую аудиторию. На выходе — понятная смета и честный прогноз по продажам.",
+        text: "Обсуждаем артиста, город, бюджет и ожидаемую аудиторию. На выходе получаете понятную смета и честный прогноз по продажам.",
       },
       {
         title: "Площадка и дата",
@@ -145,13 +145,13 @@ const ru = {
       },
       {
         title: "День события",
-        text: "Координируем площадку, службы и артиста. После — отчёт по продажам, фотоотчёт и разбор того, что можно сделать лучше.",
+        text: "Координируем площадку, службы и артиста. После события делаем отчёт по продажам, фотоотчёт и разбор того, что можно сделать лучше.",
       },
     ],
     statsTitle: "В цифрах",
   },
   partnersPage: {
-    lead: "Мы работаем с площадками, брендами и медиа, которым важна живая аудитория. Ниже — форматы, с которых обычно начинается разговор; итоговый пакет всегда собираем под конкретное событие.",
+    lead: "Мы работаем с площадками, брендами и медиа, которым важна живая аудитория. Ниже форматы, с которых обычно начинается разговор; итоговый пакет всегда собираем под конкретное событие.",
     formatsTitle: "Форматы сотрудничества",
     formats: [
       {
@@ -168,14 +168,14 @@ const ru = {
       },
       {
         title: "Технологический партнёр",
-        text: "Продукт или сервис как часть опыта зрителя — оплата, навигация, связь, съёмка. Интегрируем в сценарий события.",
+        text: "Продукт или сервис как часть опыта зрителя: оплата, навигация, связь, съёмка. Интегрируем в сценарий события.",
       },
     ],
     benefitsTitle: "Что получает партнёр",
     benefits: [
       "Прямой контакт с аудиторией, которая пришла за эмоцией, а не за рекламой",
       "Брендинг площадки: сцена, экраны, входная группа, зона ожидания",
-      "Присутствие в промо-кампании — от наружной рекламы до digital",
+      "Присутствие в промо-кампании: от наружной рекламы до digital",
       "Фото- и видеоматериалы с события для собственных каналов",
       "Отчёт по охватам и посещаемости после события",
     ],
@@ -286,7 +286,7 @@ const kz: Dictionary = {
     partners: "Серіктестер",
     ctaTitle: "Серіктес болу",
     ctaText:
-      "Алаңдар, брендтер және медиа — жұмысымыз туралы айтып, ынтымақтастық форматын таңдаймыз.",
+      "Алаңдар, брендтер және медиа: жұмысымыз туралы айтып, ынтымақтастық форматын таңдаймыз.",
     emptyEvents: "Афиша жаңартылып жатыр. Жақын арада іс-шаралар пайда болады.",
   },
   categories: {
@@ -333,7 +333,7 @@ const kz: Dictionary = {
   },
   form: {
     title: "Өтінім қалдыру",
-    text: "Мақсатыңызды айтыңыз — ұсынысымызбен хабарласамыз.",
+    text: "Мақсатыңызды айтыңыз, ұсынысымызбен хабарласамыз.",
     type: "Өтініш тақырыбы",
     typePartner: "Ынтымақтастық",
     typeArtist: "Мен әртіспін",
@@ -346,23 +346,23 @@ const kz: Dictionary = {
     message: "Хабарлама",
     submit: "Жіберу",
     sending: "Жіберілуде…",
-    success: "Өтінім жіберілді — жақын арада хабарласамыз.",
+    success: "Өтінім жіберілді. Жақын арада хабарласамыз.",
     error: "Өтінімді жіберу мүмкін болмады. Қайталап көріңіз.",
     nameRequired: "Атыңызды жазыңыз.",
-    contactRequired: "Телефон не e-mail қалдырыңыз — әйтпесе жауап бере алмаймыз.",
+    contactRequired: "Телефон не e-mail қалдырыңыз, әйтпесе жауап бере алмаймыз.",
     disabled: "Форма дерекқор қосылғаннан кейін жұмыс істейді.",
   },
   about: {
-    lead: "Concerts Prod — толық циклді концерттік агенттік. Іс-шараны әртіспен алғашқы әңгімеден бастап соңғы көрермен залдан шыққанға дейін алып жүреміз және аралықтағы әрбір қадамға жауап береміз.",
+    lead: "Concerts Prod: толық циклді концерттік агенттік. Іс-шараны әртіспен алғашқы әңгімеден бастап соңғы көрермен залдан шыққанға дейін алып жүреміз және аралықтағы әрбір қадамға жауап береміз.",
     servicesTitle: "Біз не істейміз",
     services: [
       {
         title: "Концерттер мен турлар",
-        text: "Қазақстан, Ресей, Қырғызстан және Өзбекстан бойынша, сондай-ақ Еуропада — Испания, Нидерланд және Германияда жеке шоулар мен гастрольдік маршруттар: әртіспен келіссөз, райдер, логистика, алаң, билет бағдарламасы.",
+        text: "Қазақстан, Ресей, Қырғызстан және Өзбекстан бойынша, сондай-ақ Еуропада: Испания, Нидерланд және Германияда жеке шоулар мен гастрольдік маршруттар: әртіспен келіссөз, райдер, логистика, алаң, билет бағдарламасы.",
       },
       {
         title: "Фестивальдер мен open air",
-        text: "Ашық аспан астындағы көп сахналы іс-шаралар — лайн-ап таңдау мен аумақты аймақтауға бастап, қауіпсіздік қызметтері мен қала әкімшілігімен жұмысқа дейін.",
+        text: "Ашық аспан астындағы көп сахналы іс-шаралар: лайн-ап таңдау мен аумақты аймақтауға бастап, қауіпсіздік қызметтері мен қала әкімшілігімен жұмысқа дейін.",
       },
       {
         title: "Продакшн",
@@ -377,7 +377,7 @@ const kz: Dictionary = {
     steps: [
       {
         title: "Бриф",
-        text: "Әртісті, қаланы, бюджетті және күтілетін аудиторияны талқылаймыз. Нәтижесінде — түсінікті смета және сатылым бойынша шынайы болжам.",
+        text: "Әртісті, қаланы, бюджетті және күтілетін аудиторияны талқылаймыз. Нәтижесінде: түсінікті смета және сатылым бойынша шынайы болжам.",
       },
       {
         title: "Алаң және күні",
@@ -393,13 +393,13 @@ const kz: Dictionary = {
       },
       {
         title: "Іс-шара күні",
-        text: "Алаңды, қызметтерді және әртісті үйлестіреміз. Кейін — сатылым бойынша есеп, фотоесеп және нені жақсартуға болатынын талдау.",
+        text: "Алаңды, қызметтерді және әртісті үйлестіреміз. Кейін: сатылым бойынша есеп, фотоесеп және нені жақсартуға болатынын талдау.",
       },
     ],
     statsTitle: "Сандармен",
   },
   partnersPage: {
-    lead: "Біз тірі аудитория маңызды алаңдармен, брендтермен және медиамен жұмыс істейміз. Төменде — әңгіме әдетте басталатын форматтар; түпкі пакетті әрқашан нақты іс-шараға қарай жинаймыз.",
+    lead: "Біз тірі аудитория маңызды алаңдармен, брендтермен және медиамен жұмыс істейміз. Төменде әңгіме әдетте басталатын форматтар; түпкі пакетті әрқашан нақты іс-шараға қарай жинаймыз.",
     formatsTitle: "Ынтымақтастық форматтары",
     formats: [
       {
@@ -416,14 +416,14 @@ const kz: Dictionary = {
       },
       {
         title: "Технологиялық серіктес",
-        text: "Өнім немесе сервис көрермен тәжірибесінің бөлігі ретінде — төлем, навигация, байланыс, түсірілім. Іс-шара сценарийіне кіріктіреміз.",
+        text: "Өнім немесе сервис көрермен тәжірибесінің бөлігі ретінде: төлем, навигация, байланыс, түсірілім. Іс-шара сценарийіне кіріктіреміз.",
       },
     ],
     benefitsTitle: "Серіктес не алады",
     benefits: [
       "Жарнама үшін емес, эмоция үшін келген аудиториямен тікелей байланыс",
       "Алаң брендингі: сахна, экрандар, кіреберіс, күту аймағы",
-      "Промо-науқанда болу — сыртқы жарнамадан digital-ға дейін",
+      "Промо-науқанда болу: сыртқы жарнамадан digital-ға дейін",
       "Өз арналарыңызға арналған іс-шара фото- және видеоматериалдары",
       "Іс-шарадан кейінгі қамту мен қатысу бойынша есеп",
     ],
@@ -531,7 +531,7 @@ const en: Dictionary = {
     partners: "Partners",
     ctaTitle: "Become a partner",
     ctaText:
-      "Venues, brands and media — we will walk you through how we work and find the right format.",
+      "Venues, brands and media: we will walk you through how we work and find the right format.",
     emptyEvents: "The line-up is being updated. Upcoming shows will appear here shortly.",
   },
   categories: {
@@ -578,7 +578,7 @@ const en: Dictionary = {
   },
   form: {
     title: "Get in touch",
-    text: "Tell us about your project — we will come back with a proposal.",
+    text: "Tell us about your project and we will come back with a proposal.",
     type: "Subject",
     typePartner: "Partnership",
     typeArtist: "I am an artist",
@@ -591,7 +591,7 @@ const en: Dictionary = {
     message: "Message",
     submit: "Send",
     sending: "Sending…",
-    success: "Thanks — we will get back to you shortly.",
+    success: "Thanks, we will get back to you shortly.",
     error: "The message could not be sent. Please try again.",
     nameRequired: "Please tell us your name.",
     contactRequired: "Leave a phone number or e-mail so we can reply.",
@@ -603,11 +603,11 @@ const en: Dictionary = {
     services: [
       {
         title: "Concerts and tours",
-        text: "Solo shows and touring routes across Kazakhstan, Russia, Kyrgyzstan and Uzbekistan, and in Europe — Spain, the Netherlands and Germany: artist negotiations, rider, logistics, venue and ticketing.",
+        text: "Solo shows and touring routes across Kazakhstan, Russia, Kyrgyzstan and Uzbekistan, and in Europe: Spain, the Netherlands and Germany: artist negotiations, rider, logistics, venue and ticketing.",
       },
       {
         title: "Festivals and open airs",
-        text: "Multi-stage outdoor events — from line-up and site zoning to security services and working with the city.",
+        text: "Multi-stage outdoor events: from line-up and site zoning to security services and working with the city.",
       },
       {
         title: "Production",
@@ -630,7 +630,7 @@ const en: Dictionary = {
       },
       {
         title: "Production",
-        text: "We build the technical solution around the rider, line up contractors and load in ahead of time — not on show day.",
+        text: "We build the technical solution around the rider, line up contractors and load in ahead of time, not on show day.",
       },
       {
         title: "Promotion",
@@ -644,7 +644,7 @@ const en: Dictionary = {
     statsTitle: "In numbers",
   },
   partnersPage: {
-    lead: "We work with venues, brands and media that care about a live audience. Below are the formats most conversations start from — the final package is always built around the specific event.",
+    lead: "We work with venues, brands and media that care about a live audience. Below are the formats most conversations start from; the final package is always built around the specific event.",
     formatsTitle: "Ways to work together",
     formats: [
       {
@@ -661,7 +661,7 @@ const en: Dictionary = {
       },
       {
         title: "Technology partner",
-        text: "Your product or service as part of the guest experience — payments, wayfinding, connectivity, capture. We build it into the run of show.",
+        text: "Your product or service as part of the guest experience: payments, wayfinding, connectivity, capture. We build it into the run of show.",
       },
     ],
     benefitsTitle: "What a partner gets",

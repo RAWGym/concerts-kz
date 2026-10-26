@@ -79,7 +79,7 @@ export function fromLocalInput(value: string, timeZone: string) {
 }
 
 export function formatDateTime(iso: string | null, timeZone = "Asia/Almaty") {
-  if (!iso) return "—";
+  if (!iso) return "–";
   return new Intl.DateTimeFormat("ru-RU", {
     timeZone,
     day: "numeric",
@@ -91,7 +91,7 @@ export function formatDateTime(iso: string | null, timeZone = "Asia/Almaty") {
 }
 
 export function money(n: number | null | undefined, currency = "KZT") {
-  if (n == null) return "—";
+  if (n == null) return "–";
   const sign: Record<string, string> = { KZT: "₸", KGS: "сом", UZS: "сум" };
   return `${new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(Number(n))} ${sign[currency] ?? currency}`;
 }

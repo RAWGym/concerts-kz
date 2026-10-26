@@ -146,7 +146,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
               <Stagger as="dl" className="grid grid-cols-2 gap-px overflow-hidden rounded-card bg-line">
                 {stats.map((stat) => (
                   <StaggerItem key={stat.id} className="bg-ink p-6">
-                    <dt className="font-display text-3xl font-bold text-coral md:text-[40px]">
+                    <dt className="whitespace-nowrap font-display text-[26px] font-bold text-coral sm:text-3xl md:text-[40px]">
                       <CountUp value={stat.value} />
                     </dt>
                     <dd className="mt-2 text-sm text-fg-muted">{stat.label}</dd>

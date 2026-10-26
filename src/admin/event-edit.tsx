@@ -244,7 +244,7 @@ export default function EventEdit() {
 
           <Card>
             <h2 className="mb-1 font-display text-sm font-semibold uppercase text-fg">Билеты</h2>
-            <p className="mb-4 text-xs text-fg-subtle">Цены в тенге. «Осталось» пусто — без ограничения. «Цена от» на сайте считается сама.</p>
+            <p className="mb-4 text-xs text-fg-subtle">Цены в тенге. «Осталось» пусто: без ограничения. «Цена от» на сайте считается сама.</p>
             <div className="space-y-3">
               {cats.map((k, i) => (
                 <div key={k.id ?? i} className="grid grid-cols-2 gap-3 rounded-btn border border-line p-3 sm:grid-cols-[1.4fr_1fr_0.8fr_0.7fr_auto]">

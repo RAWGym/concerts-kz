@@ -154,7 +154,7 @@ export default function Dashboard() {
               <ul className="divide-y divide-line">
                 {changes.map((c) => (
                   <li key={c.id} className="py-2.5 text-sm">
-                    <span className="text-fg">{c.actor ?? "—"}</span>{" "}
+                    <span className="text-fg">{c.actor ?? "–"}</span>{" "}
                     <span className="text-fg-muted">{c.action === "insert" ? "создал" : c.action === "delete" ? "удалил" : "изменил"} {(tableLabels[c.table_name] ?? c.table_name).toLowerCase()}</span>{" "}
                     <span className="text-fg">{c.label}</span>
                     <p className="text-xs text-fg-subtle">{formatDateTime(c.at)}</p>

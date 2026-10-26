@@ -54,7 +54,7 @@ export default function Settings() {
           <p className="text-xs text-fg-subtle">Показываются в подвале и на странице «Контакты».</p>
           <Field label="Телефон"><input className={inputCls} value={contacts.phone} onChange={(e) => setContacts({ ...contacts, phone: e.target.value })} /></Field>
           <Field label="E-mail"><input className={inputCls} value={contacts.email} onChange={(e) => setContacts({ ...contacts, email: e.target.value })} /></Field>
-          <Field label="WhatsApp" hint="Номер, например +7 700 000 00 00. Пусто — не показываем"><input className={inputCls} value={contacts.whatsapp} onChange={(e) => setContacts({ ...contacts, whatsapp: e.target.value })} /></Field>
+          <Field label="WhatsApp" hint="Номер, например +7 700 000 00 00. Пусто: не показываем"><input className={inputCls} value={contacts.whatsapp} onChange={(e) => setContacts({ ...contacts, whatsapp: e.target.value })} /></Field>
           {LANGS.map((l) => (
             <Field key={l} label={`Адрес (${l.toUpperCase()})`}>
               <input className={inputCls} value={contacts.address[l] ?? ""} onChange={(e) => setContacts({ ...contacts, address: { ...contacts.address, [l]: e.target.value } })} />

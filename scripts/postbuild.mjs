@@ -21,9 +21,9 @@ copyFileSync("dist/index.html", "dist/404.html");
 
 const pages = {
   "": {
-    ru: ["Concerts Prod — концерты в Казахстане и России", "Концерты и фестивали с 2015 года в Казахстане, России, Кыргызстане, Узбекистане и Европе. Афиша, билеты онлайн, фотоотчёты."],
-    kz: ["Concerts Prod — Қазақстан мен Ресейдегі концерттер", "2015 жылдан бері концерттер мен фестивальдер ұйымдастырамыз. Афиша, онлайн билеттер."],
-    en: ["Concerts Prod — concerts in Kazakhstan and Russia", "Concerts and festivals since 2015. Events, tickets online, photo reports."],
+    ru: ["Concerts Prod | концерты в Казахстане и России", "Концерты и фестивали с 2015 года в Казахстане, России, Кыргызстане, Узбекистане и Европе. Афиша, билеты онлайн, фотоотчёты."],
+    kz: ["Concerts Prod | Қазақстан мен Ресейдегі концерттер", "2015 жылдан бері концерттер мен фестивальдер ұйымдастырамыз. Афиша, онлайн билеттер."],
+    en: ["Concerts Prod | concerts in Kazakhstan and Russia", "Concerts and festivals since 2015. Events, tickets online, photo reports."],
   },
   events: {
     ru: ["Афиша концертов", "Ближайшие концерты, фестивали и шоу. Билеты онлайн."],
@@ -178,7 +178,7 @@ for (const locale of LOCALES) {
         : undefined,
     };
     add(
-      writePage(`${locale}/events/${e.slug}`, locale, { title: `${tr.title || e.slug} — ${date}${e.venue?.city ? `, ${e.venue.city}` : ""}`, description, image, type: "article", jsonLd }),
+      writePage(`${locale}/events/${e.slug}`, locale, { title: `${tr.title || e.slug}, ${date}${e.venue?.city ? `, ${e.venue.city}` : ""}`, description, image, type: "article", jsonLd }),
       e.updated_at,
       new Date(e.starts_at) > new Date() ? 0.9 : 0.4,
     );
@@ -188,7 +188,7 @@ for (const locale of LOCALES) {
     const title = pick(r.title, locale) || r.slug;
     add(
       writePage(`${locale}/reports/${r.slug}`, locale, {
-        title: `${title} — ${pages.reports[locale][0]}`,
+        title: `${title} | ${pages.reports[locale][0]}`,
         description: clip([title, r.city].filter(Boolean).join(", ")),
         image: abs(r.cover_url),
         type: "article",

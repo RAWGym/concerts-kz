@@ -219,7 +219,7 @@ function TicketModal({
 
             <dl className="grid grid-cols-2 gap-x-4 gap-y-4 px-6 py-5 text-sm">
               <Fact label={t.category} value={ticket.categoryName} />
-              <Fact label={t.seat} value={ticket.seatLabel ?? "—"} />
+              <Fact label={t.seat} value={ticket.seatLabel ?? "–"} />
               <Fact label={t.order} value={`№ ${ticket.orderNumber}`} />
               <Fact label={t.price} value={formatMoney(ticket.price, ticket.currency, locale)} />
               <div className="col-span-2">

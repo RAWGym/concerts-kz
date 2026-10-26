@@ -333,7 +333,7 @@ export async function getPartners(): Promise<PartnerItem[]> {
 
 export async function getSiteStats(locale: Locale): Promise<SiteStatItem[]> {
   if (!isSupabaseConfigured) {
-    return demoSiteStats.map((raw) => toSiteStatItem(raw, locale));
+    return withPortfolioStats(demoSiteStats.map((raw) => toSiteStatItem(raw, locale)), locale);
   }
 
   const { data, error } = await createPublicClient()
@@ -345,5 +345,30 @@ export async function getSiteStats(locale: Locale): Promise<SiteStatItem[]> {
 
   if (error) throw error;
 
-  return (data ?? []).map((raw) => toSiteStatItem(raw, locale));
+  return withPortfolioStats((data ?? []).map((raw) => toSiteStatItem(raw, locale)), locale);
+}
+
+/* Цифры портфолио, которые дал заказчик: 7 стран и «50+ проектов».
+   Число стран не опускаем ниже 7; блок проектов добавляем, если его нет в админке. */
+const PORTFOLIO = {
+  countries: {
+    ru: "стран СНГ и Европы",
+    kz: "ТМД және Еуропа елі",
+    en: "countries across CIS and Europe",
+  },
+  projects: { ru: "проектов с топовыми артистами", kz: "топ әртістермен жоба", en: "projects with top artists" },
+} as const;
+
+function withPortfolioStats(stats: SiteStatItem[], locale: Locale): SiteStatItem[] {
+  const out = stats.map((s) => {
+    const isCountries = s.key === "countries" || /стран|countr|(^|\s)ел(\s|:|$)/i.test(s.label ?? "");
+    if (isCountries && (parseInt(s.value, 10) || 0) < 7) {
+      return { ...s, value: "7", label: PORTFOLIO.countries[locale] };
+    }
+    return s;
+  });
+  if (!out.some((s) => s.key === "projects" || /проект|жоба|project/i.test(s.label ?? ""))) {
+    out.push({ id: "portfolio-projects", key: "projects", value: "50+", label: PORTFOLIO.projects[locale] });
+  }
+  return out;
 }

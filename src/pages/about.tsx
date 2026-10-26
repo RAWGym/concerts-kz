@@ -18,6 +18,30 @@ const ARTISTS = [
   "Mary Gu", "Элджей", "Big Baby Tape", "Feduk", "Skally Milano",
 ];
 
+const CLUB: Record<Locale, { over: string; lead: string; text: string; tags: string[]; cta: string }> = {
+  ru: {
+    over: "Собственная площадка",
+    lead: "Собственная концертная площадка Concerts Prod и ключевая часть нашей экосистемы.",
+    text: "Здесь проходят концерты, клубные события, специальные проекты и выступления артистов. Мы создаём пространство, где музыка, аудитория и энергия живого выступления объединяются в цельный и запоминающийся опыт.",
+    tags: ["Концерты", "Клубные события", "Спецпроекты", "Выступления артистов"],
+    cta: "События в Club Motor",
+  },
+  kz: {
+    over: "Өз алаңымыз",
+    lead: "Concerts Prod-тың өз концерттік алаңы және экожүйеміздің негізгі бөлігі.",
+    text: "Мұнда концерттер, клубтық кештер, арнайы жобалар мен әртістердің өнері өтеді. Біз музыка, аудитория және тірі өнердің энергиясы біртұтас әрі есте қаларлық тәжірибеге айналатын кеңістік жасаймыз.",
+    tags: ["Концерттер", "Клубтық кештер", "Арнайы жобалар", "Әртістер өнері"],
+    cta: "Club Motor іс-шаралары",
+  },
+  en: {
+    over: "Our own venue",
+    lead: "Concerts Prod's own concert venue and a key part of our ecosystem.",
+    text: "It hosts concerts, club nights, special projects and artist performances. We build a space where music, the audience and the energy of a live show come together into one memorable experience.",
+    tags: ["Concerts", "Club nights", "Special projects", "Artist performances"],
+    cta: "Events at Club Motor",
+  },
+};
+
 const L: Record<Locale, { projects: string; projectsLead: string; others: string; reports: string; all: string; geo: string; cis: string; europe: string; cisList: string[]; euList: string[] }> = {
   ru: {
     projects: "Проекты",
@@ -81,6 +105,7 @@ export default async function AboutPage({
   const t = getDictionary(locale);
   const [stats, projects] = await Promise.all([getSiteStats(locale), getPhotoReports(locale)]);
   const l = L[locale];
+  const club = CLUB[locale];
 
   return (
     <Section>
@@ -131,6 +156,34 @@ export default async function AboutPage({
               </ul>
             </div>
           ))}
+        </div>
+      </Reveal>
+
+      {/* ---------- Club Motor: собственная площадка ---------- */}
+      <Reveal className="mt-16">
+        <div className="relative overflow-hidden rounded-[24px] bg-surface p-7 ring-1 ring-line sm:p-12">
+          <div aria-hidden className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-coral/20 blur-3xl" />
+          <div className="relative grid gap-8 lg:grid-cols-[1.1fr_1fr] lg:items-center">
+            <div>
+              <p className="font-display text-[11px] font-semibold uppercase tracking-[0.14em] text-coral">{club.over}</p>
+              <h2 className="mt-3 font-display text-4xl font-bold uppercase leading-none text-fg sm:text-6xl">Club Motor</h2>
+              <p className="mt-5 max-w-md text-base leading-7 text-fg">{club.lead}</p>
+            </div>
+            <div>
+              <p className="text-sm leading-7 text-fg-muted">{club.text}</p>
+              <ul className="mt-6 flex flex-wrap gap-2">
+                {club.tags.map((tag) => (
+                  <li key={tag} className="rounded-full px-4 py-2 text-sm text-fg ring-1 ring-line">{tag}</li>
+                ))}
+              </ul>
+              <Link
+                href={localePath(locale, "/events") + "?q=Motor"}
+                className="mt-7 inline-flex items-center gap-2 rounded-full bg-coral px-6 py-3 font-display text-[12px] font-semibold uppercase tracking-[0.08em] text-white transition-[transform,box-shadow] duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_40px_-16px_rgba(255,77,77,0.8)]"
+              >
+                {club.cta} →
+              </Link>
+            </div>
+          </div>
         </div>
       </Reveal>
 

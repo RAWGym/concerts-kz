@@ -78,9 +78,7 @@ export default async function PartnersPage({
               key={benefit}
               className="flex gap-3 text-sm leading-6 text-fg-muted"
             >
-              <span aria-hidden className="text-coral">
-                —
-              </span>
+              <span aria-hidden className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-coral" />
               {benefit}
             </li>
           ))}

@@ -38,7 +38,7 @@ export default function Audit() {
           {rows.map((r) => (
             <tr key={r.id}>
               <td className="whitespace-nowrap px-4 py-3 text-fg-muted">{formatDateTime(r.at)}</td>
-              <td className="px-4 py-3 text-fg">{r.actor ?? "—"}</td>
+              <td className="px-4 py-3 text-fg">{r.actor ?? "–"}</td>
               <td className="px-4 py-3">
                 <Pill tone={tones[r.action]}>{actions[r.action]}</Pill>{" "}
                 <span className="text-fg-muted">{tableLabels[r.table_name] ?? r.table_name}</span>{" "}

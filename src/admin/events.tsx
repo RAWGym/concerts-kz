@@ -69,7 +69,7 @@ export default function EventsList() {
                   </div>
                 </td>
                 <td className="px-4 py-3 text-fg-muted">{formatDateTime(e.starts_at, e.venue?.timezone)}</td>
-                <td className="px-4 py-3 text-fg-muted">{e.venue ? `${e.venue.city} · ${e.venue.name}` : "—"}</td>
+                <td className="px-4 py-3 text-fg-muted">{e.venue ? `${e.venue.city} · ${e.venue.name}` : "–"}</td>
                 <td className="px-4 py-3 text-fg-muted">{money(e.price_from, e.currency)}</td>
                 <td className="px-4 py-3"><Pill tone={statusTone[e.status]}>{statusLabel[e.status]}</Pill></td>
               </tr>

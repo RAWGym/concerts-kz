@@ -76,7 +76,7 @@ export default function Orders() {
           {shown.map((o) => (
             <tr key={o.id}>
               <td className="px-4 py-3 text-fg-muted">{o.number}</td>
-              <td className="px-4 py-3 text-fg">{o.event?.translations.find((t) => t.locale === "ru")?.title ?? o.event?.slug ?? "—"}</td>
+              <td className="px-4 py-3 text-fg">{o.event?.translations.find((t) => t.locale === "ru")?.title ?? o.event?.slug ?? "–"}</td>
               <td className="px-4 py-3 text-fg-muted">
                 <div className="text-fg">{o.buyer_name}</div>
                 <div className="text-xs">{o.buyer_phone} · {o.buyer_email}</div>

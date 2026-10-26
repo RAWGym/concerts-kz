@@ -57,7 +57,7 @@ export function OrdersTab({
                   {fill(t.orderNo, { n: order.number })}
                 </p>
                 <p className="mt-1 truncate font-display text-sm font-semibold uppercase text-fg sm:text-base">
-                  {e?.title ?? "—"}
+                  {e?.title ?? "–"}
                 </p>
                 <p className="mt-0.5 truncate text-xs text-fg-muted">
                   {fill(t.created, { date: created.format(new Date(order.createdAt)) })}
