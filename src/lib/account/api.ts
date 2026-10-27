@@ -6,6 +6,8 @@ import type { RawEvent } from "@/lib/data/types";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 
+import { claimMyOrders } from "@/lib/tickets/provider";
+
 import { demoOrders } from "./demo";
 import type { AccountOrder, AccountTicket, AccountUser } from "./types";
 
@@ -53,6 +55,7 @@ const client = () => createBrowserSupabase() as unknown as SupabaseClient;
 
 export async function getMyOrders(userId: string, locale: Locale): Promise<AccountOrder[]> {
   if (!isSupabaseConfigured) return demoOrders(locale);
+  await claimMyOrders();
 
   const { data, error } = await client()
     .from("orders")

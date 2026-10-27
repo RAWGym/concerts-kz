@@ -26,7 +26,7 @@ export default function OrderPage() {
         const next = await tickets.getOrder(params.id!);
         if (stop) return;
         setOrder(next);
-        if (next.status === "pending" && attempt < 20) setTimeout(() => poll(attempt + 1), 3000);
+        if (next.status === "pending" && attempt < 40) setTimeout(() => poll(attempt + 1), 3000);
       } catch {
         if (!stop && attempt < 20) setTimeout(() => poll(attempt + 1), 3000);
       }
@@ -43,7 +43,7 @@ export default function OrderPage() {
     <Section>
       <div className="mx-auto max-w-md text-center">
         <p className="overline">{t.checkout.statusTitle}</p>
-        <h1 className="mt-2 font-display text-2xl font-bold text-fg">№ {params.id}</h1>
+        <h1 className="mt-2 font-display text-2xl font-bold text-fg">№ {order?.number ?? "…"}</h1>
         <p className={`mt-6 text-base ${order?.status === "paid" ? "text-teal" : "text-fg-muted"}`}>
           {statusText}
         </p>
@@ -52,9 +52,16 @@ export default function OrderPage() {
             {t.checkout.total}: {formatMoney(order.total, order.currency, locale)}
           </p>
         )}
-        <Link href={localePath(locale, "/events")} className="btn btn-secondary mt-10">
-          {t.nav.events}
-        </Link>
+        <div className="mt-10 flex flex-wrap justify-center gap-3">
+          {order?.status === "paid" && (
+            <Link href={localePath(locale, "/account")} className="btn btn-primary">
+              {t.checkout.myTickets}
+            </Link>
+          )}
+          <Link href={localePath(locale, "/events")} className="btn btn-secondary">
+            {t.nav.events}
+          </Link>
+        </div>
       </div>
     </Section>
   );

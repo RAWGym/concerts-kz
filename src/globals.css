@@ -450,3 +450,31 @@
   20%, 60% { transform: translateX(-6px); }
   40%, 80% { transform: translateX(6px); }
 }
+
+/* Печать билета: на листе только сам билет. */
+@media print {
+  @page {
+    margin: 12mm;
+  }
+  html,
+  body {
+    background: #fff !important;
+  }
+  body * {
+    visibility: hidden;
+  }
+  .ticket-print,
+  .ticket-print * {
+    visibility: visible;
+  }
+  .ticket-print {
+    position: absolute;
+    inset: 0 0 auto 0;
+    box-shadow: none !important;
+    border: 1px solid #ddd;
+  }
+  .ticket-print .ticket-notch::before,
+  .ticket-print .ticket-notch::after {
+    display: none;
+  }
+}

@@ -210,6 +210,12 @@ function TicketModal({
             <div className="flex flex-col items-center px-6 pb-5 pt-6">
               <QrCode value={ticket.code} className="h-52 w-52" />
               <p className="mt-3 font-mono text-sm tracking-[0.12em] text-ink/70">{ticket.code}</p>
+              <a
+                href={localePath(locale, `/ticket/${encodeURIComponent(ticket.code)}`)}
+                className="mt-4 rounded-full bg-ink px-4 py-2 font-display text-[10px] font-semibold uppercase tracking-[0.12em] text-fg transition-colors hover:bg-coral"
+              >
+                {t.openTicket}
+              </a>
             </div>
 
             <div

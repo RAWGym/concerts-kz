@@ -11,6 +11,7 @@ import { localePath } from "@/i18n/routing";
 import { getEventBySlug } from "@/lib/data/queries";
 import type { EventDetail } from "@/lib/data/types";
 import { formatEventDateTime, formatMoney } from "@/lib/format";
+import { useSession } from "@/lib/account/session";
 import { isSalesEnabled, tickets } from "@/lib/tickets/provider";
 import type { TicketCategory } from "@/lib/tickets/types";
 import {
@@ -101,6 +102,12 @@ function Checkout({
 }) {
   const t = getDictionary(locale);
   const c = t.checkout;
+  const session = useSession();
+  const user = session.status === "user" ? session.user : null;
+  const loginHref =
+    typeof window === "undefined"
+      ? localePath(locale, "/login")
+      : `${localePath(locale, "/login")}?next=${encodeURIComponent(window.location.pathname)}`;
 
   const [rawQty, setQty] = useState<Record<string, number>>({});
   const [tables, setTables] = useState<number[]>([]);
@@ -144,9 +151,11 @@ function Checkout({
     const buyer = {
       name: String(form.get("name") ?? "").trim(),
       phone: String(form.get("phone") ?? "").trim(),
-      email: String(form.get("email") ?? "").trim(),
+      // Билеты привязаны к аккаунту, поэтому почта всегда та, с которой вошли.
+      email: user?.email || String(form.get("email") ?? "").trim(),
     };
 
+    if (session.status === "guest") return window.location.assign(loginHref);
     if (count === 0) return setError(c.chooseTickets);
     if (tbd) return setError(c.priceSoon);
     if (!buyer.name || !buyer.phone || !buyer.email) return setError(c.fillContacts);
@@ -206,6 +215,16 @@ function Checkout({
         <p className="mt-6 rounded-card border border-dashed border-line-strong px-4 py-3 text-sm text-fg-muted">
           {c.salesSoon}
         </p>
+      )}
+
+      {session.status === "guest" && (
+        <div className="mt-10 rounded-card border border-coral/40 bg-surface p-6 md:p-8">
+          <p className="font-display text-lg font-bold uppercase tracking-[0.02em] text-fg">{c.loginTitle}</p>
+          <p className="mt-2 max-w-xl text-sm leading-6 text-fg-muted">{c.loginText}</p>
+          <a href={loginHref} className="btn btn-primary mt-5">
+            {c.loginCta}
+          </a>
+        </div>
       )}
 
       <form onSubmit={onSubmit} className="mt-10 grid gap-10 md:grid-cols-[1fr_340px]">
@@ -284,18 +303,26 @@ function Checkout({
           </Step>
 
           <Step n={2} title={c.step2}>
-            <div className="grid gap-5 sm:grid-cols-2">
+            <div key={user?.id ?? "guest"} className="grid gap-5 sm:grid-cols-2">
               <label className="block text-xs font-medium text-fg-muted sm:col-span-2">
                 {c.name}
-                <input name="name" autoComplete="name" required className={input} />
+                <input name="name" autoComplete="name" required defaultValue={user?.fullName ?? ""} className={input} />
               </label>
               <label className="block text-xs font-medium text-fg-muted">
                 {c.phone}
-                <input name="phone" type="tel" autoComplete="tel" required placeholder="+7" className={input} />
+                <input name="phone" type="tel" autoComplete="tel" required placeholder="+7" defaultValue={user?.phone ?? ""} className={input} />
               </label>
               <label className="block text-xs font-medium text-fg-muted">
                 {c.email}
-                <input name="email" type="email" autoComplete="email" required className={input} />
+                <input
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  readOnly={Boolean(user)}
+                  defaultValue={user?.email ?? ""}
+                  className={`${input} read-only:opacity-70`}
+                />
               </label>
             </div>
             <p className="mt-3 text-xs text-fg-subtle">{c.emailHint}</p>
@@ -339,10 +366,14 @@ function Checkout({
 
           <button
             type="submit"
-            disabled={busy || tbd}
+            disabled={busy || tbd || session.status === "loading"}
             className="btn btn-primary mt-5 w-full disabled:opacity-60"
           >
-            {tbd ? c.priceSoon : `${c.pay} · ${formatMoney(total, currency, locale)}`}
+            {tbd
+              ? c.priceSoon
+              : session.status === "guest"
+                ? c.loginCta
+                : `${c.pay} · ${formatMoney(total, currency, locale)}`}
           </button>
 
           <p className="mt-4 text-xs leading-5 text-fg-subtle">{c.secure}</p>

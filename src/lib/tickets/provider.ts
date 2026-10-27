@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { EventDetail } from "@/lib/data/types";
+import { createBrowserSupabase } from "@/lib/supabase/client";
 import { createPublicClient } from "@/lib/supabase/public";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 
@@ -9,6 +10,7 @@ import type {
   OrderDraft,
   PaymentStart,
   TicketCategory,
+  TicketView,
 } from "./types";
 
 /**
@@ -51,8 +53,16 @@ const apiProvider: TicketProvider = {
     call<TicketCategory[]>(`/tickets/categories?event=${encodeURIComponent(event.id)}&locale=${encodeURIComponent(locale ?? "ru")}`)
       .then((list) => (list.length ? list : demoProvider.getCategories(event, locale)))
       .catch(() => demoProvider.getCategories(event, locale)),
-  createOrder: (draft) =>
-    call("/orders", { method: "POST", body: JSON.stringify(draft) }),
+  // Заказ привязываем к учётной записи: сервер проверяет токен входа.
+  createOrder: async (draft) => {
+    const { data } = await createBrowserSupabase().auth.getSession();
+    const token = data.session?.access_token;
+    return call("/orders", {
+      method: "POST",
+      body: JSON.stringify(draft),
+      headers: token ? { authorization: `Bearer ${token}` } : {},
+    });
+  },
   startPayment: (orderId, returnUrl) =>
     call("/payments", {
       method: "POST",
@@ -136,6 +146,21 @@ const demoProvider: TicketProvider = {
     };
   },
 };
+
+/** Привязывает к аккаунту заказы, оформленные на его почту. */
+export async function claimMyOrders() {
+  const { data } = await createBrowserSupabase().auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) return;
+  await fetch(`${apiUrl}/me/claim`, { method: "POST", headers: { authorization: `Bearer ${token}` } }).catch(() => {});
+}
+
+/** Билет по коду для страницы билета. */
+export const getTicket = (code: string, locale: string) =>
+  call<TicketView>(`/tickets/view?code=${encodeURIComponent(code)}&locale=${encodeURIComponent(locale)}`);
+
+/** QR-картинка билета (для письма и печати). */
+export const ticketQrUrl = (code: string) => `${apiUrl}/tickets/qr?code=${encodeURIComponent(code)}`;
 
 export const tickets: TicketProvider = isSalesEnabled ? apiProvider : demoProvider;
 

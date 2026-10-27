@@ -103,7 +103,10 @@ export const local = {
           items.push({ category_id: cat.code, category_name: name, quantity: 1, unit_price: Number(cat.price), seat_label: seat });
         }
       } else {
-        items.push({ category_id: cat.code, category_name: name, quantity: qty, unit_price: Number(cat.price) });
+        // Каждый билет отдельной строкой: у каждого свой код и свой QR.
+        for (let n = 0; n < qty; n++) {
+          items.push({ category_id: cat.code, category_name: name, quantity: 1, unit_price: Number(cat.price) });
+        }
       }
     }
     if (!items.length) throw new SaleError("empty_order");

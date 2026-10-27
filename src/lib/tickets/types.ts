@@ -50,12 +50,40 @@ export type OrderStatus =
 
 export type Order = {
   id: string;
+  /** Короткий номер заказа для покупателя. */
+  number?: number;
   status: OrderStatus;
   total: number;
   serviceFee: number;
   currency: CurrencyCode;
   /** До какого момента держится бронь мест. */
   expiresAt: string | null;
+};
+
+/** Билет для отдельной страницы: всё, что печатается на билете. */
+export type TicketView = {
+  code: string;
+  index: number;
+  count: number;
+  category: string;
+  seat: string | null;
+  price: number;
+  currency: CurrencyCode;
+  orderNumber: number;
+  purchasedAt: string | null;
+  buyer: { name: string; email: string; phone: string };
+  event: {
+    title: string;
+    startsAt: string;
+    doorsOpenAt: string | null;
+    timezone: string;
+    ageLimit: number | null;
+    posterUrl: string | null;
+    venue: string | null;
+    city: string | null;
+    address: string | null;
+    slug: string;
+  };
 };
 
 export type PaymentStart = {

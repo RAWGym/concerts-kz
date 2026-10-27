@@ -109,6 +109,32 @@ export const acquiring = {
     return { paymentId: xmlValue(xml, "pg_payment_id"), paymentUrl: xmlValue(xml, "pg_redirect_url") };
   },
 
+  /** Статус платежа напрямую у FreedomPay: запасной путь, если уведомление не пришло. */
+  async getStatus(paymentId: string): Promise<{ succeeded: boolean; failed: boolean; raw: Record<string, string> } | null> {
+    const params: Record<string, string> = {
+      pg_merchant_id: env("ACQUIRING_MERCHANT_ID").replace(/\D/g, ""),
+      pg_payment_id: paymentId,
+      pg_salt: salt(),
+    };
+    params.pg_sig = await sign("get_status3.php", params);
+    const res = await fetch(`${apiUrl()}/get_status3.php`, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams(params),
+    });
+    const xml = await res.text();
+    if (xmlValue(xml, "pg_status") !== "ok") {
+      console.error("freedompay get_status3", res.status, xml.slice(0, 1000));
+      return null;
+    }
+    const raw: Record<string, string> = {};
+    for (const k of ["pg_payment_id", "pg_order_id", "pg_payment_status", "pg_amount", "pg_currency", "pg_failure_code", "pg_failure_description", "pg_card_pan", "pg_payment_date"]) {
+      raw[k] = xmlValue(xml, k);
+    }
+    const st = raw.pg_payment_status;
+    return { succeeded: st === "success", failed: st === "error" || st === "failed" || st === "revoked", raw };
+  },
+
   /** Проверяет подпись уведомления (result_url). null: подпись неверна. */
   async handleCallback(req: Request): Promise<CallbackResult | null> {
     const type = req.headers.get("content-type") ?? "";

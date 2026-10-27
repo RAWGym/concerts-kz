@@ -3,6 +3,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 import { acquiring } from "./acquiring.ts";
+import { emailTickets, qrGif, ticketByCode } from "./delivery.ts";
 import { local, SaleError } from "./local.ts";
 import { ticketon } from "./ticketon.ts";
 
@@ -17,6 +18,38 @@ const json = (body: unknown, status = 200) =>
 
 const db = () =>
   createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+type OrderRow = { id: string; status: string; total: number | string };
+
+/** Записывает результат оплаты и после успеха выдаёт билеты. Повтор ничего не меняет. */
+async function settle(
+  supabase: ReturnType<typeof db>,
+  order: OrderRow,
+  paymentId: string,
+  succeeded: boolean,
+  raw: Record<string, string>,
+) {
+  await supabase
+    .from("payments")
+    .update({ status: succeeded ? "succeeded" : "failed", raw })
+    .eq("provider", acquiring.name())
+    .eq("provider_payment_id", paymentId);
+  if (order.status === "paid") return "ok";
+  if (succeeded && Number(raw.pg_amount) + 0.001 < Number(order.total)) return "amount_mismatch";
+  // Меняем только ожидающий заказ: два одновременных запроса не выдадут билеты дважды.
+  const { data: changed } = await supabase
+    .from("orders")
+    .update({ status: succeeded ? "paid" : "failed" })
+    .eq("id", order.id)
+    .in("status", ["pending", "failed"])
+    .select("id");
+  if (succeeded && changed?.length) {
+    if (ticketon.isConfigured()) await ticketon.confirmOrder(order.id);
+    else await local.confirmOrder(supabase, order.id);
+    await emailTickets(supabase, order.id).catch((e) => console.error("tickets email", e));
+  }
+  return "ok";
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
@@ -34,23 +67,38 @@ Deno.serve(async (req) => {
       const supabase = db();
       const { data: order } = await supabase.from("orders").select("id, status, total").eq("id", result.orderId).maybeSingle();
       if (!order) return xml(await acquiring.callbackResponse("error", "order not found"));
-      await supabase
-        .from("payments")
-        .update({ status: result.succeeded ? "succeeded" : "failed", raw: result.raw })
-        .eq("provider", acquiring.name())
-        .eq("provider_payment_id", result.paymentId);
-      // Повторное уведомление по уже оплаченному заказу ничего не меняет.
-      if (order.status !== "paid") {
-        if (result.succeeded && Number(result.raw.pg_amount) + 0.001 < Number(order.total)) {
-          return xml(await acquiring.callbackResponse("error", "amount mismatch"));
-        }
-        await supabase.from("orders").update({ status: result.succeeded ? "paid" : "failed" }).eq("id", order.id);
-        if (result.succeeded) {
-          if (ticketon.isConfigured()) await ticketon.confirmOrder(order.id);
-          else await local.confirmOrder(supabase, order.id);
-        }
-      }
+      const outcome = await settle(supabase, order, result.paymentId, result.succeeded, result.raw);
+      if (outcome === "amount_mismatch") return xml(await acquiring.callbackResponse("error", "amount mismatch"));
       return xml(await acquiring.callbackResponse("ok", "Order accepted"));
+    }
+
+    // Страница билета и QR для письма: код билета и есть пропуск.
+    if (req.method === "GET" && route === "/tickets/view") {
+      const ticket = await ticketByCode(db(), url.searchParams.get("code") ?? "", url.searchParams.get("locale") ?? undefined);
+      return ticket ? json(ticket) : json({ error: "not_found" }, 404);
+    }
+    if (req.method === "GET" && route === "/tickets/qr") {
+      const code = (url.searchParams.get("code") ?? "").toUpperCase();
+      if (!/^[0-9A-F]{12}(-\d{1,3})?$/.test(code)) return new Response("bad code", { status: 400 });
+      return new Response(qrGif(code), {
+        headers: { "content-type": "image/gif", "cache-control": "public, max-age=31536000, immutable" },
+      });
+    }
+
+    // Заказы, купленные на почту аккаунта до входа, привязываем к нему.
+    if (req.method === "POST" && route === "/me/claim") {
+      const supabase = db();
+      const token = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
+      const { data: auth } = token ? await supabase.auth.getUser(token) : { data: { user: null } };
+      const user = auth?.user;
+      if (!user?.email || !user.email_confirmed_at) return json({ error: "login_required" }, 401);
+      const { data } = await supabase
+        .from("orders")
+        .update({ user_id: user.id })
+        .is("user_id", null)
+        .ilike("buyer_email", user.email.replace(/[\\%_]/g, (c) => `\\${c}`))
+        .select("id");
+      return json({ claimed: data?.length ?? 0 });
     }
 
     // Ticketon необязателен: без него продаём по тарифам из админки.
@@ -70,14 +118,20 @@ Deno.serve(async (req) => {
       const draft = await req.json();
       if (!draft.acceptedTerms) return json({ error: "terms_required" }, 400);
       const supabase = db();
+      // Покупка только после входа: билеты потом видны в личном кабинете.
+      const token = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
+      const { data: auth } = token ? await supabase.auth.getUser(token) : { data: { user: null } };
+      const user = auth?.user;
+      if (!user?.email) return json({ error: "login_required" }, 401);
       const reservation = useTicketon ? await ticketon.reserve(draft) : await local.reserve(supabase, draft);
       const { data: order, error } = await supabase
         .from("orders")
         .insert({
           event_id: draft.eventId,
-          buyer_name: draft.buyer.name,
-          buyer_phone: draft.buyer.phone,
-          buyer_email: draft.buyer.email,
+          user_id: user.id,
+          buyer_name: String(draft.buyer?.name ?? "").slice(0, 120),
+          buyer_phone: String(draft.buyer?.phone ?? "").slice(0, 40),
+          buyer_email: user.email,
           locale: draft.locale,
           total: reservation.total,
           service_fee: reservation.serviceFee,
@@ -105,14 +159,32 @@ Deno.serve(async (req) => {
 
     const orderMatch = route.match(/^\/orders\/([0-9a-f-]{36})$/);
     if (req.method === "GET" && orderMatch) {
-      const { data: order } = await db()
-        .from("orders")
-        .select("id, status, total, service_fee, currency, expires_at")
-        .eq("id", orderMatch[1])
-        .single();
+      const supabase = db();
+      const select = "id, number, status, total, service_fee, currency, expires_at";
+      let { data: order } = await supabase.from("orders").select(select).eq("id", orderMatch[1]).single();
+      // Уведомление FreedomPay может задержаться: спрашиваем статус сами.
+      if (order && order.status === "pending") {
+        const { data: pay } = await supabase
+          .from("payments")
+          .select("provider_payment_id")
+          .eq("order_id", order.id)
+          .eq("provider", acquiring.name())
+          .not("provider_payment_id", "is", null)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (pay?.provider_payment_id) {
+          const st = await acquiring.getStatus(pay.provider_payment_id).catch((e) => (console.error(e), null));
+          if (st && (st.succeeded || st.failed)) {
+            await settle(supabase, order, pay.provider_payment_id, st.succeeded, st.raw);
+            ({ data: order } = await supabase.from("orders").select(select).eq("id", order.id).single());
+          }
+        }
+      }
       if (!order) return json({ error: "not_found" }, 404);
       return json({
         id: order.id,
+        number: order.number,
         status: order.status,
         total: Number(order.total),
         serviceFee: Number(order.service_fee),
