@@ -9,6 +9,7 @@ import { intlLocale, type Locale } from "@/i18n/config";
 import { localePath } from "@/i18n/routing";
 import type { AccountOrder } from "@/lib/account/types";
 import { formatEventDateTime, formatMoney } from "@/lib/format";
+import { resendTickets } from "@/lib/tickets/provider";
 
 import { EmptyPanel, StatusPill } from "./ui";
 
@@ -142,6 +143,7 @@ export function OrdersTab({
                           {t.details}
                         </Link>
                       )}
+                      {order.status === "paid" && <ResendButton orderId={order.id} t={t} />}
                     </div>
                   </div>
                 </motion.div>
@@ -151,5 +153,23 @@ export function OrdersTab({
         );
       })}
     </ul>
+  );
+}
+
+/** Повторная отправка билетов заказа на почту аккаунта. */
+function ResendButton({ orderId, t }: { orderId: string; t: AccountDictionary["account"] }) {
+  const [state, setState] = useState<"idle" | "busy" | "sent" | "error">("idle");
+  return (
+    <button
+      type="button"
+      disabled={state === "busy" || state === "sent"}
+      onClick={async () => {
+        setState("busy");
+        setState((await resendTickets(orderId)) ? "sent" : "error");
+      }}
+      className="mt-3 w-full text-center text-xs text-fg-muted underline-offset-4 transition-colors hover:text-coral hover:underline disabled:no-underline disabled:opacity-70"
+    >
+      {state === "sent" ? t.resent : state === "error" ? t.resendError : state === "busy" ? "…" : t.resend}
+    </button>
   );
 }

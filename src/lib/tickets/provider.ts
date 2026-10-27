@@ -155,6 +155,20 @@ export async function claimMyOrders() {
   await fetch(`${apiUrl}/me/claim`, { method: "POST", headers: { authorization: `Bearer ${token}` } }).catch(() => {});
 }
 
+/** Ещё раз отправить билеты заказа на почту. */
+export async function resendTickets(orderId: string) {
+  const { data } = await createBrowserSupabase().auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) return false;
+  const res = await fetch(`${apiUrl}/me/resend`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify({ orderId }),
+  }).catch(() => null);
+  if (!res?.ok) return false;
+  return Boolean(((await res.json()) as { sent?: boolean }).sent);
+}
+
 /** Билет по коду для страницы билета. */
 export const getTicket = (code: string, locale: string) =>
   call<TicketView>(`/tickets/view?code=${encodeURIComponent(code)}&locale=${encodeURIComponent(locale)}`);

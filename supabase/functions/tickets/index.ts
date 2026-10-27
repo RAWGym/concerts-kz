@@ -51,6 +51,31 @@ async function settle(
   return "ok";
 }
 
+/** Пользователь по токену входа из заголовка Authorization. */
+async function userFrom(req: Request, supabase: ReturnType<typeof db>) {
+  const token = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
+  if (!token) return null;
+  const { data } = await supabase.auth.getUser(token);
+  return data?.user ?? null;
+}
+
+/** Спрашивает у FreedomPay статус последнего платежа заказа и проводит его. */
+async function refreshPending(supabase: ReturnType<typeof db>, order: OrderRow) {
+  if (order.status !== "pending") return;
+  const { data: pay } = await supabase
+    .from("payments")
+    .select("provider_payment_id")
+    .eq("order_id", order.id)
+    .eq("provider", acquiring.name())
+    .not("provider_payment_id", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!pay?.provider_payment_id) return;
+  const st = await acquiring.getStatus(pay.provider_payment_id).catch((e) => (console.error(e), null));
+  if (st && (st.succeeded || st.failed)) await settle(supabase, order, pay.provider_payment_id, st.succeeded, st.raw);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
@@ -88,9 +113,7 @@ Deno.serve(async (req) => {
     // Заказы, купленные на почту аккаунта до входа, привязываем к нему.
     if (req.method === "POST" && route === "/me/claim") {
       const supabase = db();
-      const token = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
-      const { data: auth } = token ? await supabase.auth.getUser(token) : { data: { user: null } };
-      const user = auth?.user;
+      const user = await userFrom(req, supabase);
       if (!user?.email || !user.email_confirmed_at) return json({ error: "login_required" }, 401);
       const { data } = await supabase
         .from("orders")
@@ -98,7 +121,26 @@ Deno.serve(async (req) => {
         .is("user_id", null)
         .ilike("buyer_email", user.email.replace(/[\\%_]/g, (c) => `\\${c}`))
         .select("id");
+      // Неоплаченные заказы с начатой оплатой: вдруг банк уже провёл платёж.
+      const { data: pending } = await supabase
+        .from("orders")
+        .select("id, status, total")
+        .eq("user_id", user.id)
+        .eq("status", "pending")
+        .gt("created_at", new Date(Date.now() - 3 * 86400_000).toISOString());
+      for (const o of pending ?? []) await refreshPending(supabase, o);
       return json({ claimed: data?.length ?? 0 });
+    }
+
+    // Повторно отправить билеты заказа на почту владельца.
+    if (req.method === "POST" && route === "/me/resend") {
+      const supabase = db();
+      const user = await userFrom(req, supabase);
+      if (!user) return json({ error: "login_required" }, 401);
+      const { orderId } = await req.json();
+      const { data: order } = await supabase.from("orders").select("id, status").eq("id", orderId).eq("user_id", user.id).maybeSingle();
+      if (!order || order.status !== "paid") return json({ error: "not_found" }, 404);
+      return json({ sent: await emailTickets(supabase, order.id) });
     }
 
     // Ticketon необязателен: без него продаём по тарифам из админки.
@@ -119,9 +161,7 @@ Deno.serve(async (req) => {
       if (!draft.acceptedTerms) return json({ error: "terms_required" }, 400);
       const supabase = db();
       // Покупка только после входа: билеты потом видны в личном кабинете.
-      const token = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
-      const { data: auth } = token ? await supabase.auth.getUser(token) : { data: { user: null } };
-      const user = auth?.user;
+      const user = await userFrom(req, supabase);
       if (!user?.email) return json({ error: "login_required" }, 401);
       const reservation = useTicketon ? await ticketon.reserve(draft) : await local.reserve(supabase, draft);
       const { data: order, error } = await supabase
@@ -164,22 +204,8 @@ Deno.serve(async (req) => {
       let { data: order } = await supabase.from("orders").select(select).eq("id", orderMatch[1]).single();
       // Уведомление FreedomPay может задержаться: спрашиваем статус сами.
       if (order && order.status === "pending") {
-        const { data: pay } = await supabase
-          .from("payments")
-          .select("provider_payment_id")
-          .eq("order_id", order.id)
-          .eq("provider", acquiring.name())
-          .not("provider_payment_id", "is", null)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        if (pay?.provider_payment_id) {
-          const st = await acquiring.getStatus(pay.provider_payment_id).catch((e) => (console.error(e), null));
-          if (st && (st.succeeded || st.failed)) {
-            await settle(supabase, order, pay.provider_payment_id, st.succeeded, st.raw);
-            ({ data: order } = await supabase.from("orders").select(select).eq("id", order.id).single());
-          }
-        }
+        await refreshPending(supabase, order);
+        ({ data: order } = await supabase.from("orders").select(select).eq("id", order.id).single());
       }
       if (!order) return json({ error: "not_found" }, 404);
       return json({
