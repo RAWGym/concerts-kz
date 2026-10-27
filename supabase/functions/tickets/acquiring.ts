@@ -67,7 +67,7 @@ export const acquiring = {
   async createPayment(p: CreatePayment): Promise<{ paymentId: string; paymentUrl: string }> {
     const fn = env("PUBLIC_FUNCTION_URL").replace(/\/$/, "");
     const params: Record<string, string> = {
-      pg_merchant_id: env("ACQUIRING_MERCHANT_ID"),
+      pg_merchant_id: env("ACQUIRING_MERCHANT_ID").replace(/\D/g, ""),
       pg_order_id: p.orderNumber,
       pg_param1: p.orderId,
       pg_amount: p.amount.toFixed(2),
@@ -86,7 +86,9 @@ export const acquiring = {
     };
     const phone = digits(p.phone);
     if (phone.length === 11) params.pg_user_phone = phone;
-    if (acquiring.isTesting()) params.pg_testing_mode = "1";
+    // Магазин в статусе «Тестовый» и так проводит только тестовые платежи.
+    // pg_testing_mode нужен лишь боевому магазину, поэтому шлём его только по флагу.
+    if (env("ACQUIRING_TESTING_PARAM") === "1") params.pg_testing_mode = "1";
     params.pg_sig = await sign("init_payment.php", params);
 
     const res = await fetch(`${apiUrl()}/init_payment.php`, {
@@ -96,7 +98,12 @@ export const acquiring = {
     });
     const xml = await res.text();
     if (xmlValue(xml, "pg_status") !== "ok") {
-      console.error("freedompay init_payment response", res.status, xml.slice(0, 2000));
+      console.error(
+        "freedompay init_payment response",
+        res.status,
+        `merchant=${params.pg_merchant_id} rawMerchantLen=${env("ACQUIRING_MERCHANT_ID").length} secretLen=${env("ACQUIRING_SECRET").length} testing=${params.pg_testing_mode ?? "0"} api=${apiUrl()}`,
+        xml.slice(0, 2000),
+      );
       throw new Error(`freedompay init_payment: ${xmlValue(xml, "pg_error_code")} ${xmlValue(xml, "pg_error_description")}`);
     }
     return { paymentId: xmlValue(xml, "pg_payment_id"), paymentUrl: xmlValue(xml, "pg_redirect_url") };
