@@ -169,6 +169,25 @@ export async function resendTickets(orderId: string) {
   return Boolean(((await res.json()) as { sent?: boolean }).sent);
 }
 
+/**
+ * Повторная оплата своего заказа. Если бронь истекла, сервер проверит,
+ * что места свободны, и забронирует их заново. Возвращает ссылку банка
+ * или код ошибки: login_required, not_enough_tickets, seat_taken и т.п.
+ */
+export async function retryPayment(orderId: string, returnUrl: string): Promise<{ paymentUrl?: string; error?: string }> {
+  const { data } = await createBrowserSupabase().auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) return { error: "login_required" };
+  const res = await fetch(`${apiUrl}/orders/${encodeURIComponent(orderId)}/retry`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify({ returnUrl }),
+  }).catch(() => null);
+  if (!res) return { error: "network" };
+  const body = (await res.json().catch(() => ({}))) as { paymentUrl?: string; error?: string };
+  return res.ok && body.paymentUrl ? { paymentUrl: body.paymentUrl } : { error: body.error ?? "internal" };
+}
+
 /** Билет по коду для страницы билета. */
 export const getTicket = (code: string, locale: string) =>
   call<TicketView>(`/tickets/view?code=${encodeURIComponent(code)}&locale=${encodeURIComponent(locale)}`);

@@ -76,6 +76,38 @@ async function refreshPending(supabase: ReturnType<typeof db>, order: OrderRow) 
   if (st && (st.succeeded || st.failed)) await settle(supabase, order, pay.provider_payment_id, st.succeeded, st.raw);
 }
 
+/** Создаёт платёж FreedomPay и возвращает ссылку на страницу оплаты. */
+async function startPayment(
+  supabase: ReturnType<typeof db>,
+  order: { id: string; number: number; total: number | string; currency: string; buyer_email: string; buyer_phone: string },
+  returnUrl: unknown,
+) {
+  // Номер для банка уникален на каждую попытку: банк не принимает один и тот же дважды.
+  const { count } = await supabase.from("payments").select("id", { count: "exact", head: true }).eq("order_id", order.id);
+  const site = Deno.env.get("SITE_URL") ?? "https://concerts.kz";
+  const payment = await acquiring.createPayment({
+    orderId: order.id,
+    orderNumber: count ? `${order.number}-${count + 1}` : String(order.number),
+    amount: Number(order.total),
+    currency: order.currency,
+    description: `Билеты, заказ ${order.number}`,
+    email: order.buyer_email,
+    phone: order.buyer_phone,
+    returnUrl:
+      typeof returnUrl === "string" && /^https:\/\/(www\.)?concerts\.kz\//.test(returnUrl)
+        ? returnUrl
+        : `${site}/ru/orders/${order.id}`,
+  });
+  await supabase.from("payments").insert({
+    order_id: order.id,
+    provider: acquiring.name(),
+    provider_payment_id: payment.paymentId,
+    amount: order.total,
+    currency: order.currency,
+  });
+  return payment.paymentUrl;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
@@ -234,24 +266,53 @@ Deno.serve(async (req) => {
       const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
       if (!order || order.status !== "pending") return json({ error: "order_not_payable" }, 409);
       if (order.expires_at && new Date(order.expires_at) < new Date()) return json({ error: "order_expired" }, 409);
-      const payment = await acquiring.createPayment({
-        orderId,
-        orderNumber: String(order.number),
-        amount: Number(order.total),
-        currency: order.currency,
-        description: `Билеты, заказ ${order.number}`,
-        email: order.buyer_email,
-        phone: order.buyer_phone,
-        returnUrl: /^https:\/\/(www\.)?concerts\.kz\//.test(returnUrl) ? returnUrl : `${Deno.env.get("SITE_URL") ?? "https://concerts.kz"}/ru/orders/${orderId}`,
-      });
-      await supabase.from("payments").insert({
-        order_id: orderId,
-        provider: acquiring.name(),
-        provider_payment_id: payment.paymentId,
-        amount: order.total,
-        currency: order.currency,
-      });
-      return json({ paymentUrl: payment.paymentUrl });
+      return json({ paymentUrl: await startPayment(supabase, order, returnUrl) });
+    }
+
+    // Повторная оплата заказа владельцем: после отказа банка или истёкшей брони.
+    const retryMatch = route.match(/^\/orders\/([0-9a-f-]{36})\/retry$/);
+    if (req.method === "POST" && retryMatch) {
+      const { returnUrl } = await req.json().catch(() => ({}));
+      const supabase = db();
+      const user = await userFrom(req, supabase);
+      if (!user) return json({ error: "login_required" }, 401);
+      const { data: order } = await supabase.from("orders").select("*").eq("id", retryMatch[1]).single();
+      if (!order || order.user_id !== user.id) return json({ error: "not_found" }, 404);
+      if (order.status === "paid" || order.status === "refunded") return json({ error: "order_not_payable" }, 409);
+      // Вдруг прошлая попытка всё же прошла: сначала уточняем у банка.
+      if (order.status === "pending") {
+        await refreshPending(supabase, order);
+        const { data: fresh } = await supabase.from("orders").select("status").eq("id", order.id).single();
+        if (fresh?.status === "paid") return json({ error: "already_paid" }, 409);
+        order.status = fresh?.status ?? order.status;
+      }
+      const alive = order.status === "pending" && order.expires_at && new Date(order.expires_at) > new Date();
+      if (!alive) {
+        if (useTicketon) return json({ error: "order_not_payable" }, 409);
+        // Бронь снята: проверяем, что места ещё свободны, и бронируем заново.
+        const { data: items } = await supabase.from("order_items").select("category_id, quantity, seat_label").eq("order_id", order.id);
+        const byCat = new Map<string, { categoryId: string; quantity: number; seats: string[] }>();
+        for (const it of items ?? []) {
+          const row = byCat.get(it.category_id) ?? { categoryId: it.category_id, quantity: 0, seats: [] };
+          row.quantity += it.quantity;
+          if (it.seat_label) row.seats.push(it.seat_label);
+          byCat.set(it.category_id, row);
+        }
+        const reservation = await local.reserve(supabase, {
+          eventId: order.event_id,
+          items: [...byCat.values()].map((r) => ({ categoryId: r.categoryId, quantity: r.quantity, ...(r.seats.length ? { seats: r.seats } : {}) })),
+        });
+        const { data: reopened } = await supabase
+          .from("orders")
+          .update({ status: "pending", expires_at: reservation.expiresAt })
+          .eq("id", order.id)
+          .in("status", ["pending", "failed", "expired"])
+          .select("*")
+          .single();
+        if (!reopened) return json({ error: "order_not_payable" }, 409);
+        Object.assign(order, reopened);
+      }
+      return json({ paymentUrl: await startPayment(supabase, order, returnUrl) });
     }
 
     return json({ error: "not_found" }, 404);

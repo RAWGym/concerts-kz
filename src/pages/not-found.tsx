@@ -8,7 +8,7 @@ import { localePath } from "@/i18n/routing";
  * not-found.tsx не получает params, поэтому локаль здесь неизвестна —
  * показываем текст на языке по умолчанию.
  */
-export default function NotFound({ failed = false }: { failed?: boolean }) {
+export default function NotFound({ failed = false, detail }: { failed?: boolean; detail?: string }) {
   const t = getDictionary(defaultLocale);
 
   return (
@@ -29,6 +29,7 @@ export default function NotFound({ failed = false }: { failed?: boolean }) {
           {t.nav.home}
         </Link>
       </div>
+      {detail && <p className="mt-6 max-w-md break-words text-[11px] text-fg-subtle/60">{detail.slice(0, 200)}</p>}
     </div>
   );
 }

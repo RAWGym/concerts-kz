@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router";
 
 import Link from "next/link";
+import { PayAgainButton } from "@/components/tickets/pay-again";
 import { Section } from "@/components/ui/section";
 import { defaultLocale, isLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
@@ -53,6 +54,13 @@ export default function OrderPage() {
           </p>
         )}
         <div className="mt-10 flex flex-wrap justify-center gap-3">
+          {order && ["failed", "expired", "pending"].includes(order.status) && (
+            <PayAgainButton
+              orderId={order.id}
+              locale={locale}
+              label={order.status === "pending" ? t.checkout.pay : t.checkout.retry}
+            />
+          )}
           {order?.status === "paid" && (
             <Link href={localePath(locale, "/account")} className="btn btn-primary">
               {t.checkout.myTickets}

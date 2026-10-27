@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { EventPoster } from "@/components/event/event-poster";
 import { EASE_OUT } from "@/components/motion/reveal";
+import { PayAgainButton } from "@/components/tickets/pay-again";
 import { fill, type AccountDictionary } from "@/i18n/account";
 import { intlLocale, type Locale } from "@/i18n/config";
 import { localePath } from "@/i18n/routing";
@@ -134,10 +135,10 @@ export function OrdersTab({
                           {formatMoney(order.total, order.currency, locale)}
                         </span>
                       </div>
-                      {order.status === "pending" ? (
-                        <Link href={localePath(locale, `/orders/${order.id}`)} className="btn btn-primary mt-4 w-full !py-3">
-                          {t.pay}
-                        </Link>
+                      {["pending", "failed", "expired"].includes(order.status) ? (
+                        <div className="mt-4">
+                          <PayAgainButton orderId={order.id} locale={locale} label={t.pay} className="btn btn-primary w-full !py-3" />
+                        </div>
                       ) : (
                         <Link href={localePath(locale, `/orders/${order.id}`)} className="btn btn-secondary mt-4 w-full !py-3">
                           {t.details}

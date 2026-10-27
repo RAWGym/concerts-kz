@@ -1,6 +1,6 @@
 import { motion, useReducedMotion } from "framer-motion";
 import { useEffect } from "react";
-import { Navigate, Outlet, useLocation, useParams, useRouteError } from "react-router";
+import { Navigate, Outlet, useLocation, useNavigate, useParams, useRouteError } from "react-router";
 
 import { RouteProgress } from "@/components/motion/route-progress";
 
@@ -96,8 +96,29 @@ export function reloadOnce() {
 
 export function RouteError() {
   const error = useRouteError();
-  if (error instanceof NotFoundError) return <NotFound />;
-  if (isStaleChunk(error) && reloadOnce()) return null;
+  const navigate = useNavigate();
+  const location = useLocation();
+  const notFound = error instanceof NotFoundError;
+  const stale = !notFound && isStaleChunk(error);
+  // Случайный сбой отрисовки (часто из-за расширений браузера, которые
+  // правят страницу): тихо перерисовываем ту же страницу один раз.
+  const retry = !notFound && !stale && firstRetry(location.pathname);
+
+  useEffect(() => {
+    if (retry) navigate(location.pathname + location.search, { replace: true });
+  }, [retry, navigate, location.pathname, location.search]);
+
+  if (notFound) return <NotFound />;
+  if (stale && reloadOnce()) return null;
+  if (retry) return null;
   console.error(error);
-  return <NotFound failed />;
+  return <NotFound failed detail={error instanceof Error ? error.message : String(error)} />;
+}
+
+const retried = new Map<string, number>();
+function firstRetry(path: string) {
+  const last = retried.get(path) ?? 0;
+  if (Date.now() - last < 10_000) return false;
+  retried.set(path, Date.now());
+  return true;
 }

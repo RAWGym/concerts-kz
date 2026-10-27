@@ -10,13 +10,19 @@ import type { Database } from "./types";
  * пользователя, страницы остаются статическими и обновляются по ISR.
  * Для админки нужен клиент с сессией — см. ./server.
  */
-export function createPublicClient() {
-  const { url, anonKey } = requireSupabaseEnv();
+let client: ReturnType<typeof createClient<Database>> | null = null;
 
-  return createClient<Database>(url, anonKey, {
+export function createPublicClient() {
+  if (client) return client;
+  const { url, anonKey } = requireSupabaseEnv();
+  // Один клиент на всю вкладку и свой ключ хранилища: не мешает входу пользователя.
+  client = createClient<Database>(url, anonKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
+      detectSessionInUrl: false,
+      storageKey: "sb-public",
     },
   });
+  return client;
 }

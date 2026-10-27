@@ -239,6 +239,9 @@ const ru = {
     status_failed: "Оплата не прошла. Попробуйте ещё раз.",
     status_expired: "Время брони истекло.",
     status_refunded: "Деньги возвращены.",
+    retry: "Попробовать ещё раз",
+    retrySoldOut: "Эти места уже заняты. Выберите другие билеты на странице события.",
+    retryError: "Не получилось открыть оплату. Попробуйте ещё раз через минуту.",
   },
   auth: {
     login: "Войти",
@@ -497,6 +500,9 @@ const kz: Dictionary = {
     status_failed: "Төлем өтпеді. Қайталап көріңіз.",
     status_expired: "Брондау уақыты бітті.",
     status_refunded: "Ақша қайтарылды.",
+    retry: "Қайта көру",
+    retrySoldOut: "Бұл орындар бос емес. Іс-шара бетінен басқа билет таңдаңыз.",
+    retryError: "Төлем ашылмады. Бір минуттан кейін қайталаңыз.",
   },
   auth: {
     login: "Кіру",
@@ -752,6 +758,9 @@ const en: Dictionary = {
     status_failed: "Payment failed. Please try again.",
     status_expired: "The reservation has expired.",
     status_refunded: "Refunded.",
+    retry: "Try again",
+    retrySoldOut: "These seats are already taken. Please pick other tickets on the event page.",
+    retryError: "Could not open the payment page. Please try again in a minute.",
   },
   auth: {
     login: "Sign in",

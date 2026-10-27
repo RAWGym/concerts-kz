@@ -23,6 +23,11 @@ function load(key: string, run: () => Promise<ReactNode> | ReactNode) {
   if (!promise) {
     promise = Promise.resolve().then(run);
     cache.set(key, promise);
+    // Неудачную загрузку не запоминаем: следующий заход попробует снова.
+    const failed = promise;
+    failed.catch(() => {
+      if (cache.get(key) === failed) cache.delete(key);
+    });
     if (cache.size > MAX_CACHE) {
       const oldest = cache.keys().next().value;
       if (oldest) cache.delete(oldest);
