@@ -16,7 +16,10 @@ import type {
  * (supabase/functions) или api.concerts.kz. Ключи Ticketon и
  * эквайринга хранятся только там.
  */
-const apiUrl = (import.meta.env.VITE_TICKETS_API_URL as string | undefined) ?? "";
+// Адрес публичный (ключи только в секретах функции), поэтому есть запасной вариант.
+const apiUrl =
+  (import.meta.env.VITE_TICKETS_API_URL as string | undefined) ||
+  "https://jlpfqasntsnuzxlouqvq.supabase.co/functions/v1/tickets";
 
 export const isSalesEnabled = Boolean(apiUrl);
 
@@ -43,8 +46,11 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 const apiProvider: TicketProvider = {
+  // Если сервер продаж недоступен, показываем тарифы из базы, как раньше.
   getCategories: (event, locale) =>
-    call(`/tickets/categories?event=${encodeURIComponent(event.id)}&locale=${encodeURIComponent(locale ?? "ru")}`),
+    call<TicketCategory[]>(`/tickets/categories?event=${encodeURIComponent(event.id)}&locale=${encodeURIComponent(locale ?? "ru")}`)
+      .then((list) => (list.length ? list : demoProvider.getCategories(event, locale)))
+      .catch(() => demoProvider.getCategories(event, locale)),
   createOrder: (draft) =>
     call("/orders", { method: "POST", body: JSON.stringify(draft) }),
   startPayment: (orderId, returnUrl) =>
