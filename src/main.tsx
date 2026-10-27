@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router";
 
 import { lazyPage, PageSkeleton } from "@/app/page-loader";
-import { LocaleRedirect, RouteError, SiteLayout } from "@/app/layout";
+import { LocaleRedirect, reloadOnce, RouteError, SiteLayout } from "@/app/layout";
 import NotFound from "@/pages/not-found";
 
 import "./globals.css";
@@ -16,6 +16,11 @@ if (window.top !== window.self) {
     document.documentElement.style.display = "none";
   }
 }
+
+// Вкладка открыта со старой версии, а файлы уже обновились: берём свежие.
+window.addEventListener("vite:preloadError", (e) => {
+  if (reloadOnce()) e.preventDefault();
+});
 
 /* Каждая страница — отдельный файл, грузится при первом заходе. */
 const Home = lazyPage(() => import("@/pages/home"));

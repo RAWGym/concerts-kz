@@ -75,8 +75,29 @@ export function SiteLayout() {
   );
 }
 
+/** После выкладки старые файлы страниц удаляются: открытая вкладка их не найдёт. */
+export function isStaleChunk(error: unknown) {
+  const msg = error instanceof Error ? error.message : String(error ?? "");
+  return /dynamically imported module|Importing a module script failed|module script|ChunkLoadError|Unable to preload/i.test(msg);
+}
+
+/** Один раз перезагружаем страницу, чтобы взять свежую версию сайта. */
+export function reloadOnce() {
+  try {
+    const last = Number(sessionStorage.getItem("chunk-reload") ?? 0);
+    if (Date.now() - last < 30_000) return false;
+    sessionStorage.setItem("chunk-reload", String(Date.now()));
+  } catch {
+    /* без хранилища просто перезагружаем */
+  }
+  window.location.reload();
+  return true;
+}
+
 export function RouteError() {
   const error = useRouteError();
-  if (!(error instanceof NotFoundError)) console.error(error);
-  return <NotFound />;
+  if (error instanceof NotFoundError) return <NotFound />;
+  if (isStaleChunk(error) && reloadOnce()) return null;
+  console.error(error);
+  return <NotFound failed />;
 }

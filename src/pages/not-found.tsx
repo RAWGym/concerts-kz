@@ -8,18 +8,27 @@ import { localePath } from "@/i18n/routing";
  * not-found.tsx не получает params, поэтому локаль здесь неизвестна —
  * показываем текст на языке по умолчанию.
  */
-export default function NotFound() {
+export default function NotFound({ failed = false }: { failed?: boolean }) {
   const t = getDictionary(defaultLocale);
 
   return (
     <div className="mx-auto flex min-h-[60vh] max-w-7xl flex-col items-center justify-center px-4 sm:px-6 text-center">
-      <p className="font-display text-6xl font-bold text-coral">404</p>
+      <p className="font-display text-6xl font-bold text-coral">{failed ? "Упс" : "404"}</p>
       <p className="mt-4 max-w-sm text-sm leading-6 text-fg-muted">
-        {t.home.emptyEvents}
+        {failed
+          ? "Страница не загрузилась. Обновите её, обычно это помогает."
+          : "Такой страницы нет. Возможно, ссылка устарела или событие уже прошло."}
       </p>
-      <Link href={localePath(defaultLocale)} className="btn btn-secondary mt-8">
-        {t.nav.home}
-      </Link>
+      <div className="mt-8 flex flex-wrap justify-center gap-3">
+        {failed && (
+          <button type="button" onClick={() => window.location.reload()} className="btn btn-primary">
+            Обновить
+          </button>
+        )}
+        <Link href={localePath(defaultLocale)} className="btn btn-secondary">
+          {t.nav.home}
+        </Link>
+      </div>
     </div>
   );
 }
