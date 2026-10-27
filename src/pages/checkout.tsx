@@ -13,6 +13,41 @@ import type { EventDetail } from "@/lib/data/types";
 import { formatEventDateTime, formatMoney } from "@/lib/format";
 import { isSalesEnabled, tickets } from "@/lib/tickets/provider";
 import type { TicketCategory } from "@/lib/tickets/types";
+import {
+  MOTOR_TABLE_COUNT,
+  MOTOR_TEXT,
+  MOTOR_ZONES,
+  MotorScheme,
+  ZONE_COLOR,
+  type MotorZone,
+} from "@/components/tickets/motor-scheme";
+
+/** Схема Motor Club включается для событий в этом клубе с тарифами по зонам. */
+function hasMotorScheme(event: EventDetail, categories: TicketCategory[]) {
+  const atMotor = /motor/i.test(`${event.venueName ?? ""}`);
+  const zoned = categories.some((c) => (MOTOR_ZONES as readonly string[]).includes(c.id));
+  const ramil = /рамил|ramil/i.test(`${event.title} ${event.slug}`);
+  return atMotor && (zoned || ramil);
+}
+
+/** Тарифы схемы: из админки, если заведены, иначе без цены. */
+function motorCategories(event: EventDetail, categories: TicketCategory[], locale: Locale): TicketCategory[] {
+  return MOTOR_ZONES.map((zone) => {
+    const fromDb = categories.find((c) => c.id === zone);
+    if (fromDb && fromDb.price > 0) {
+      return zone === "vip-table" ? { ...fromDb, maxPerOrder: MOTOR_TABLE_COUNT } : fromDb;
+    }
+    return {
+      id: zone,
+      name: fromDb?.name ?? MOTOR_TEXT[locale].zones[zone].name,
+      price: 0,
+      currency: event.currency,
+      available: event.isSoldOut ? 0 : null,
+      maxPerOrder: zone === "vip-table" ? MOTOR_TABLE_COUNT : 10,
+      priceTbd: true,
+    };
+  });
+}
 
 /**
  * Оформление заказа: категории билетов → контакты → оплата.
@@ -37,23 +72,42 @@ export default async function CheckoutPage({
   const event = await getEventBySlug(slug, locale);
   if (!event) notFound();
 
-  const categories = await tickets.getCategories(event, locale);
-  return <Checkout event={event} categories={categories} locale={locale} />;
+  const raw = await tickets.getCategories(event, locale).catch(() => []);
+  const motor = hasMotorScheme(event, raw);
+  const categories = motor ? motorCategories(event, raw, locale) : raw;
+  return <Checkout event={event} categories={categories} locale={locale} motor={motor} />;
 }
 
 function Checkout({
   event,
   categories,
   locale,
+  motor = false,
 }: {
   event: EventDetail;
   categories: TicketCategory[];
   locale: Locale;
+  motor?: boolean;
 }) {
   const t = getDictionary(locale);
   const c = t.checkout;
 
-  const [qty, setQty] = useState<Record<string, number>>({});
+  const [rawQty, setQty] = useState<Record<string, number>>({});
+  const [tables, setTables] = useState<number[]>([]);
+  // Для стола количество = число выбранных столов на схеме.
+  const qty = useMemo(
+    () => (motor ? { ...rawQty, "vip-table": tables.length } : rawQty),
+    [motor, rawQty, tables],
+  );
+  const tbd = categories.some((cat) => cat.priceTbd && (qty[cat.id] ?? 0) > 0);
+
+  function pickZone(zone: MotorZone) {
+    if (zone === "vip-table") return;
+    setQty((prev) => ({ ...prev, [zone]: Math.max(1, prev[zone] ?? 0) }));
+  }
+  function toggleTable(n: number) {
+    setTables((prev) => (prev.includes(n) ? prev.filter((x) => x !== n) : [...prev, n].sort((a, b) => a - b)));
+  }
   const [accepted, setAccepted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -84,6 +138,7 @@ function Checkout({
     };
 
     if (count === 0) return setError(c.chooseTickets);
+    if (tbd) return setError(c.priceSoon);
     if (!buyer.name || !buyer.phone || !buyer.email) return setError(c.fillContacts);
     if (!accepted) return setError(c.acceptTerms);
     if (!isSalesEnabled) return setError(c.salesSoon);
@@ -95,7 +150,11 @@ function Checkout({
         eventSlug: event.slug,
         items: Object.entries(qty)
           .filter(([, n]) => n > 0)
-          .map(([categoryId, quantity]) => ({ categoryId, quantity })),
+          .map(([categoryId, quantity]) => ({
+            categoryId,
+            quantity,
+            ...(categoryId === "vip-table" && motor ? { seats: tables.map((n) => `table-${n}`) } : {}),
+          })),
         buyer,
         locale,
         acceptedTerms: accepted,
@@ -142,6 +201,17 @@ function Checkout({
       <form onSubmit={onSubmit} className="mt-10 grid gap-10 md:grid-cols-[1fr_340px]">
         <div className="space-y-10">
           <Step n={1} title={c.step1}>
+            {motor && (
+              <div className="mb-5">
+                <MotorScheme
+                  locale={locale}
+                  active={MOTOR_ZONES.filter((z) => (qty[z] ?? 0) > 0)}
+                  tables={tables}
+                  onZone={pickZone}
+                  onTable={toggleTable}
+                />
+              </div>
+            )}
             <ul className="space-y-3">
               {categories.map((cat) => {
                 const n = qty[cat.id] ?? 0;
@@ -151,21 +221,52 @@ function Checkout({
                     key={cat.id}
                     className="flex items-center justify-between gap-4 rounded-card border border-line bg-surface px-5 py-4"
                   >
-                    <div>
-                      <p className="font-display text-sm font-semibold uppercase tracking-[0.04em] text-fg">
+                    <div className="min-w-0">
+                      <p className="flex items-center gap-2 font-display text-sm font-semibold uppercase tracking-[0.04em] text-fg">
+                        {motor && (
+                          <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: ZONE_COLOR[cat.id as MotorZone] }} />
+                        )}
                         {cat.name}
                       </p>
+                      {motor && (
+                        <p className="mt-1 text-xs text-fg-subtle">{MOTOR_TEXT[locale].zones[cat.id as MotorZone]?.note}</p>
+                      )}
                       <p className="mt-1 text-sm text-fg-muted">
                         {soldOut
                           ? c.soldOut
-                          : `${formatMoney(cat.price, cat.currency, locale)} ${c.perTicket}`}
+                          : cat.priceTbd
+                            ? c.priceTbd
+                            : `${formatMoney(cat.price, cat.currency, locale)} ${cat.id === "vip-table" && motor ? c.perTable : c.perTicket}`}
                       </p>
+                      {motor && cat.id === "vip-table" && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {tables.length === 0 ? (
+                            <span className="text-xs text-fg-subtle">{c.pickTable}</span>
+                          ) : (
+                            tables.map((t) => (
+                              <button
+                                key={t}
+                                type="button"
+                                onClick={() => toggleTable(t)}
+                                className="rounded-full bg-[#f5b83d] px-3 py-1 text-xs font-semibold text-[#1a1a1a] transition-opacity hover:opacity-80"
+                                aria-label={`${MOTOR_TEXT[locale].table} ${t}: ${c.remove}`}
+                              >
+                                {MOTOR_TEXT[locale].table} {t} ×
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      )}
                     </div>
-                    <div className="flex items-center gap-3">
-                      <Stepper label="−" onClick={() => change(cat, -1)} disabled={n === 0} />
-                      <span className="w-5 text-center font-display text-base text-fg">{n}</span>
-                      <Stepper label="+" onClick={() => change(cat, 1)} disabled={soldOut} />
-                    </div>
+                    {motor && cat.id === "vip-table" ? (
+                      <span className="shrink-0 font-display text-base text-fg">{n}</span>
+                    ) : (
+                      <div className="flex shrink-0 items-center gap-3">
+                        <Stepper label="−" onClick={() => change(cat, -1)} disabled={n === 0} />
+                        <span className="w-5 text-center font-display text-base text-fg">{n}</span>
+                        <Stepper label="+" onClick={() => change(cat, 1)} disabled={soldOut} />
+                      </div>
+                    )}
                   </li>
                 );
               })}
@@ -197,7 +298,7 @@ function Checkout({
           <div className="mt-5 flex items-baseline justify-between border-t border-line pt-5">
             <span className="text-sm text-fg-muted">{c.total}</span>
             <span className="font-display text-2xl font-bold text-fg">
-              {formatMoney(total, currency, locale)}
+              {tbd ? c.priceTbd : formatMoney(total, currency, locale)}
             </span>
           </div>
 
@@ -228,10 +329,10 @@ function Checkout({
 
           <button
             type="submit"
-            disabled={busy}
+            disabled={busy || tbd}
             className="btn btn-primary mt-5 w-full disabled:opacity-60"
           >
-            {c.pay} · {formatMoney(total, currency, locale)}
+            {tbd ? c.priceSoon : `${c.pay} · ${formatMoney(total, currency, locale)}`}
           </button>
 
           <p className="mt-4 text-xs leading-5 text-fg-subtle">{c.secure}</p>
@@ -293,7 +394,7 @@ function Summary({
             {cat.name} × {qty[cat.id]}
           </span>
           <span className="text-fg">
-            {formatMoney(cat.price * (qty[cat.id] ?? 0), cat.currency, locale)}
+            {cat.priceTbd ? "–" : formatMoney(cat.price * (qty[cat.id] ?? 0), cat.currency, locale)}
           </span>
         </li>
       ))}

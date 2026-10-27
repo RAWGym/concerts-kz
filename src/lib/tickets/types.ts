@@ -18,6 +18,8 @@ export type TicketCategory = {
   available: number | null;
   /** Ограничение на один заказ. */
   maxPerOrder: number;
+  /** Цена ещё не объявлена: тариф виден, но купить нельзя. */
+  priceTbd?: boolean;
 };
 
 export type Buyer = {
@@ -29,7 +31,8 @@ export type Buyer = {
 export type OrderDraft = {
   eventId: string;
   eventSlug: string;
-  items: { categoryId: string; quantity: number }[];
+  /** seats: выбранные места или столы по схеме зала, например "table-7". */
+  items: { categoryId: string; quantity: number; seats?: string[] }[];
   buyer: Buyer;
   locale: string;
   /** Согласие с офертой и политикой: без него сервер заказ не примет. */
