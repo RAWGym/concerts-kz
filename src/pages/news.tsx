@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Stagger, StaggerItem } from "@/components/motion/reveal";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -39,9 +40,10 @@ export default async function NewsPage({
       {news.length === 0 ? (
         <EmptyState text={t.pages.newsEmpty} />
       ) : (
-        <div className="divide-y divide-line border-y border-line">
+        <Stagger step={0.07} className="divide-y divide-line border-y border-line">
           {news.map((item) => (
-            <article key={item.id} className="py-8">
+            <StaggerItem key={item.id}>
+            <article className="py-8">
               <Link
                 href={localePath(locale, `/news/${item.slug}`)}
                 className="group block"
@@ -59,8 +61,9 @@ export default async function NewsPage({
                 </p>
               </Link>
             </article>
+            </StaggerItem>
           ))}
-        </div>
+        </Stagger>
       )}
     </Section>
   );

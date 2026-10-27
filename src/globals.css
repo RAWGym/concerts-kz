@@ -478,3 +478,25 @@
     display: none;
   }
 }
+
+/* Картинки проявляются по мере загрузки, а не «выстреливают» кусками.
+   Анимация, а не transition: у постеров свой transition на hover-зум. */
+img[data-fade]:not([data-loaded]) {
+  opacity: 0;
+}
+img[data-fade][data-loaded] {
+  animation: img-in 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes img-in {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  img[data-fade]:not([data-loaded]) {
+    opacity: 1;
+  }
+  img[data-fade][data-loaded] {
+    animation: none;
+  }
+}

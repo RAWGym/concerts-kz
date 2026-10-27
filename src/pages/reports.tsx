@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Stagger, StaggerItem } from "@/components/motion/reveal";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -39,10 +40,10 @@ export default async function ReportsPage({
       {reports.length === 0 ? (
         <EmptyState text={t.pages.reportsEmpty} />
       ) : (
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <Stagger step={0.07} className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {reports.map((report) => (
+            <StaggerItem key={report.id}>
             <Link
-              key={report.id}
               href={localePath(locale, `/reports/${report.slug}`)}
               className="group relative aspect-[4/3] overflow-hidden rounded-card bg-surface"
             >
@@ -61,8 +62,9 @@ export default async function ReportsPage({
                 )}
               </div>
             </Link>
+            </StaggerItem>
           ))}
-        </div>
+        </Stagger>
       )}
     </Section>
   );

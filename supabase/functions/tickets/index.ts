@@ -163,6 +163,15 @@ Deno.serve(async (req) => {
       // Покупка только после входа: билеты потом видны в личном кабинете.
       const user = await userFrom(req, supabase);
       if (!user?.email) return json({ error: "login_required" }, 401);
+      // Защита от захвата билетов: не больше 3 неоплаченных броней на человека.
+      const { count: holds } = await supabase
+        .from("orders")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("status", "pending")
+        .gt("expires_at", new Date().toISOString());
+      if ((holds ?? 0) >= 3) return json({ error: "too_many_holds" }, 429);
+      if (!Array.isArray(draft.items) || draft.items.length > 10) return json({ error: "bad_items" }, 400);
       const reservation = useTicketon ? await ticketon.reserve(draft) : await local.reserve(supabase, draft);
       const { data: order, error } = await supabase
         .from("orders")
@@ -172,7 +181,7 @@ Deno.serve(async (req) => {
           buyer_name: String(draft.buyer?.name ?? "").slice(0, 120),
           buyer_phone: String(draft.buyer?.phone ?? "").slice(0, 40),
           buyer_email: user.email,
-          locale: draft.locale,
+          locale: ["ru", "kz", "en"].includes(draft.locale) ? draft.locale : "ru",
           total: reservation.total,
           service_fee: reservation.serviceFee,
           currency: reservation.currency,

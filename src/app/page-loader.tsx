@@ -47,6 +47,27 @@ function titleOf(meta: Metadata): string | null {
   return t.absolute ?? t.default ?? null;
 }
 
+/**
+ * Страница, код которой грузится отдельным файлом только при заходе
+ * на неё: главная не тянет за собой админку, кабинет и документы.
+ */
+export function lazyPage(loader: () => Promise<PageModule>) {
+  let promise: Promise<PageModule> | null = null;
+  const prefetch = () => (promise ??= loader());
+  function Loaded() {
+    return <AsyncPage module={use(prefetch())} />;
+  }
+  function LazyPage() {
+    return (
+      <Suspense fallback={<PageSkeleton />}>
+        <Loaded />
+      </Suspense>
+    );
+  }
+  LazyPage.prefetch = prefetch;
+  return LazyPage;
+}
+
 export function AsyncPage({ module: mod }: { module: PageModule }) {
   const params = useParams();
   const [search] = useSearchParams();
@@ -83,7 +104,7 @@ export function AsyncPage({ module: mod }: { module: PageModule }) {
 }
 
 /** Пока страница грузит данные — контур будущей вёрстки, а не пустота. */
-function PageSkeleton() {
+export function PageSkeleton() {
   return (
     <div aria-busy className="mx-auto min-h-[70vh] max-w-7xl px-4 sm:px-6 py-12">
       <div className="skeleton h-3 w-28 rounded-full" />

@@ -8,6 +8,21 @@ const at = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  build: {
+    // Библиотеки отдельными файлами: они меняются редко и остаются
+    // в кэше браузера между выкладками сайта.
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return;
+          if (id.includes("@supabase")) return "supabase";
+          if (id.includes("framer-motion") || id.includes("motion-dom") || id.includes("motion-utils")) return "motion";
+          if (id.includes("react-router")) return "router";
+          if (/node_modules\/(react|react-dom|scheduler)\//.test(id)) return "react";
+        },
+      },
+    },
+  },
   resolve: {
     // Компоненты перенесены со старого сайта на Next.js. Модули next/*
     // заменены лёгкими аналогами поверх react-router.

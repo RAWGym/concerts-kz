@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Stagger, StaggerItem } from "@/components/motion/reveal";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -171,11 +172,13 @@ export default async function EventsPage({
       {events.length === 0 ? (
         <EmptyState text={past ? w.emptyPast : t.pages.eventsEmpty} />
       ) : (
-        <div className="grid grid-cols-2 gap-x-5 gap-y-10 md:grid-cols-3 lg:grid-cols-4">
+        <Stagger step={0.06} className="grid grid-cols-2 gap-x-5 gap-y-10 md:grid-cols-3 lg:grid-cols-4">
           {events.map((event) => (
-            <EventCard key={event.id} event={event} locale={locale} t={t} past={past} />
+            <StaggerItem key={event.id}>
+              <EventCard event={event} locale={locale} t={t} past={past} />
+            </StaggerItem>
           ))}
-        </div>
+        </Stagger>
       )}
     </Section>
   );

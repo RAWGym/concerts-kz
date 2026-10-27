@@ -7,7 +7,7 @@ const ROLES = ["admin", "editor", "sales"] as const;
 type Role = (typeof ROLES)[number];
 
 const cors = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": Deno.env.get("SITE_URL") ?? "https://concerts.kz",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
@@ -48,6 +48,13 @@ Deno.serve(async (req) => {
   } catch {
     return json({ error: "bad json" }, 400);
   }
+
+  // Пароль и удаление: только для сотрудников, а не для любых
+  // покупателей. Иначе через админку можно было бы захватить чужой аккаунт.
+  const isStaffTarget = async (userId: string) => {
+    const { data } = await admin.from("admins").select("user_id").eq("user_id", userId).maybeSingle();
+    return Boolean(data);
+  };
 
   switch (body.action) {
     case "list": {
@@ -117,6 +124,7 @@ Deno.serve(async (req) => {
     case "reset_password": {
       const password = String(body.password ?? "");
       if (password.length < 8) return json({ error: "Пароль от 8 символов" }, 400);
+      if (!(await isStaffTarget(String(body.user_id ?? "")))) return json({ error: "Это не сотрудник" }, 403);
       const { error } = await admin.auth.admin.updateUserById(String(body.user_id), { password });
       if (error) return json({ error: error.message }, 400);
       return json({ ok: true });
@@ -125,6 +133,7 @@ Deno.serve(async (req) => {
     case "delete": {
       const userId = String(body.user_id ?? "");
       if (userId === me.user.id) return json({ error: "Нельзя удалить себя" }, 400);
+      if (!(await isStaffTarget(userId))) return json({ error: "Это не сотрудник" }, 403);
       const { error } = await admin.auth.admin.deleteUser(userId);
       if (error) return json({ error: error.message }, 400);
       return json({ ok: true });
