@@ -22,10 +22,20 @@ import {
   type MotorZone,
 } from "@/components/tickets/motor-scheme";
 
+/** Тариф из админки → зона схемы: по коду или по названию. */
+function zoneOf(cat: TicketCategory): MotorZone | null {
+  if ((MOTOR_ZONES as readonly string[]).includes(cat.id)) return cat.id as MotorZone;
+  const n = cat.name.toLowerCase();
+  if (/стол|table|үстел/.test(n)) return "vip-table";
+  if (/2\s*(этаж|floor|қабат)|второй этаж/.test(n)) return "vip-floor2";
+  if (/танцпол|dance|фан|fan/.test(n)) return "dancefloor";
+  return null;
+}
+
 /** Схема Motor Club включается для событий в этом клубе с тарифами по зонам. */
 function hasMotorScheme(event: EventDetail, categories: TicketCategory[]) {
   const atMotor = /motor/i.test(`${event.venueName ?? ""}`);
-  const zoned = categories.some((c) => (MOTOR_ZONES as readonly string[]).includes(c.id));
+  const zoned = categories.some((c) => zoneOf(c) === "vip-table" || zoneOf(c) === "vip-floor2");
   const ramil = /рамил|ramil/i.test(`${event.title} ${event.slug}`);
   return atMotor && (zoned || ramil);
 }
@@ -33,9 +43,9 @@ function hasMotorScheme(event: EventDetail, categories: TicketCategory[]) {
 /** Тарифы схемы: из админки, если заведены, иначе без цены. */
 function motorCategories(event: EventDetail, categories: TicketCategory[], locale: Locale): TicketCategory[] {
   return MOTOR_ZONES.map((zone) => {
-    const fromDb = categories.find((c) => c.id === zone);
+    const fromDb = categories.find((c) => zoneOf(c) === zone);
     if (fromDb && fromDb.price > 0) {
-      return zone === "vip-table" ? { ...fromDb, maxPerOrder: MOTOR_TABLE_COUNT } : fromDb;
+      return { ...fromDb, id: zone, serverId: fromDb.id, maxPerOrder: zone === "vip-table" ? MOTOR_TABLE_COUNT : fromDb.maxPerOrder };
     }
     return {
       id: zone,
@@ -151,7 +161,7 @@ function Checkout({
         items: Object.entries(qty)
           .filter(([, n]) => n > 0)
           .map(([categoryId, quantity]) => ({
-            categoryId,
+            categoryId: categories.find((cat) => cat.id === categoryId)?.serverId ?? categoryId,
             quantity,
             ...(categoryId === "vip-table" && motor ? { seats: tables.map((n) => `table-${n}`) } : {}),
           })),

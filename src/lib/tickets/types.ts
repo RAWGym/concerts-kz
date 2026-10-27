@@ -20,6 +20,8 @@ export type TicketCategory = {
   maxPerOrder: number;
   /** Цена ещё не объявлена: тариф виден, но купить нельзя. */
   priceTbd?: boolean;
+  /** Код тарифа на сервере, если на сайте он показан под другим id (зона схемы). */
+  serverId?: string;
 };
 
 export type Buyer = {
