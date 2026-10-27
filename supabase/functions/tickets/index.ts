@@ -23,7 +23,7 @@ Deno.serve(async (req) => {
 
   const url = new URL(req.url);
   // /functions/v1/tickets/<route>
-  const route = url.pathname.replace(/^.*\/tickets/, "") || "/";
+  const route = url.pathname.replace(/^(\/functions\/v1)?\/tickets(?=\/|$)/, "") || "/";
 
   try {
     // Уведомление FreedomPay проверяем первым: у него своя подпись и ответ в XML.
@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
       const result = await acquiring.handleCallback(req);
       if (!result) return xml(await acquiring.callbackResponse("error", "bad signature"));
       const supabase = db();
-      const { data: order } = await supabase.from("orders").select("id, status, total").eq("id", result.orderId).single();
+      const { data: order } = await supabase.from("orders").select("id, status, total").eq("id", result.orderId).maybeSingle();
       if (!order) return xml(await acquiring.callbackResponse("error", "order not found"));
       await supabase
         .from("payments")
@@ -129,6 +129,7 @@ Deno.serve(async (req) => {
       if (order.expires_at && new Date(order.expires_at) < new Date()) return json({ error: "order_expired" }, 409);
       const payment = await acquiring.createPayment({
         orderId,
+        orderNumber: String(order.number),
         amount: Number(order.total),
         currency: order.currency,
         description: `Билеты, заказ ${order.number}`,

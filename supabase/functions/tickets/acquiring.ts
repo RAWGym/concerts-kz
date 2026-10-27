@@ -14,6 +14,8 @@ import { encodeHex } from "jsr:@std/encoding@1/hex";
 
 export type CreatePayment = {
   orderId: string;
+  /** Короткий номер заказа: FreedomPay показывает его в кабинете. */
+  orderNumber: string;
   amount: number;
   currency: string;
   description: string;
@@ -66,7 +68,8 @@ export const acquiring = {
     const fn = env("PUBLIC_FUNCTION_URL").replace(/\/$/, "");
     const params: Record<string, string> = {
       pg_merchant_id: env("ACQUIRING_MERCHANT_ID"),
-      pg_order_id: p.orderId,
+      pg_order_id: p.orderNumber,
+      pg_param1: p.orderId,
       pg_amount: p.amount.toFixed(2),
       pg_currency: p.currency,
       pg_description: p.description,
@@ -93,6 +96,7 @@ export const acquiring = {
     });
     const xml = await res.text();
     if (xmlValue(xml, "pg_status") !== "ok") {
+      console.error("freedompay init_payment response", res.status, xml.slice(0, 2000));
       throw new Error(`freedompay init_payment: ${xmlValue(xml, "pg_error_code")} ${xmlValue(xml, "pg_error_description")}`);
     }
     return { paymentId: xmlValue(xml, "pg_payment_id"), paymentUrl: xmlValue(xml, "pg_redirect_url") };
@@ -112,7 +116,7 @@ export const acquiring = {
     const expected = await sign("callback", raw);
     if (expected !== raw.pg_sig) return null;
     return {
-      orderId: raw.pg_order_id,
+      orderId: raw.pg_param1 || raw.pg_order_id,
       paymentId: raw.pg_payment_id,
       succeeded: raw.pg_result === "1",
       raw,
