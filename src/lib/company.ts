@@ -16,9 +16,11 @@ export const company = {
 export const requisiteRows: [string, string][] = [
   ["Наименование", company.name],
   ["Адрес", company.address],
-  ["БИН (ИИН)", company.bin],
+  ["ИИН/БИН", company.bin],
   ["Банк", company.bank],
   ["КБе", company.kbe],
   ["БИК", company.bik],
   ["Номер счёта (IBAN)", company.account],
+  ["Телефон", company.phone],
+  ["E-mail", company.email],
 ];

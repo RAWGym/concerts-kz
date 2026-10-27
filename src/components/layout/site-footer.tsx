@@ -119,6 +119,9 @@ export function SiteFooter({ locale, t }: { locale: Locale; t: Dictionary }) {
             <Link href={localePath(locale, "/legal/payment")} className="transition-colors hover:text-coral">
               {t.footer.payment}
             </Link>
+            <Link href={localePath(locale, "/legal/delivery")} className="transition-colors hover:text-coral">
+              {t.footer.delivery}
+            </Link>
             <Link href={localePath(locale, "/legal/how-to-buy")} className="transition-colors hover:text-coral">
               {t.footer.howToBuy}
             </Link>

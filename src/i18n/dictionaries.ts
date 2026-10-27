@@ -197,6 +197,7 @@ const ru = {
     requisites: "Реквизиты",
     payment: "Оплата и безопасность",
     howToBuy: "Как купить билет",
+    delivery: "Доставка билетов",
   },
   checkout: {
     title: "Покупка билетов",
@@ -445,6 +446,7 @@ const kz: Dictionary = {
     requisites: "Деректемелер",
     payment: "Төлем және қауіпсіздік",
     howToBuy: "Билетті қалай сатып алу",
+    delivery: "Билеттерді жеткізу",
   },
   checkout: {
     title: "Билет сатып алу",
@@ -690,6 +692,7 @@ const en: Dictionary = {
     requisites: "Company details",
     payment: "Payment and security",
     howToBuy: "How to buy",
+    delivery: "Ticket delivery",
   },
   checkout: {
     title: "Buy tickets",
