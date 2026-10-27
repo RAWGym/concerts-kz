@@ -1,0 +1,35 @@
+{
+  "version": "5",
+  "specifiers": {
+    "jsr:@std/crypto@1": "1.1.0",
+    "jsr:@std/encoding@1": "1.0.11"
+  },
+  "jsr": {
+    "@std/crypto@1.1.0": {
+      "integrity": "b8d6d0a6377a32b213af2661ed7bf1062d94feac0c57def5526a8e74a95c3ec8"
+    },
+    "@std/encoding@1.0.11": {
+      "integrity": "e7cef2f0b3153bccc17431e7c864a1de03a4b6d9647389c43e08aaa775d37385"
+    }
+  },
+  "workspace": {
+    "packageJson": {
+      "dependencies": [
+        "npm:@supabase/supabase-js@^2.118.0",
+        "npm:@tailwindcss/vite@^4.3.3",
+        "npm:@types/node@^22.20.5",
+        "npm:@types/react-dom@^19.3.0",
+        "npm:@types/react@^19.3.0",
+        "npm:@vitejs/plugin-react@^5.2.0",
+        "npm:framer-motion@^12.43.0",
+        "npm:qrcode-generator@^1.4.4",
+        "npm:react-dom@^19.3.1",
+        "npm:react-router@^7.18.4",
+        "npm:react@^19.3.1",
+        "npm:tailwindcss@^4.3.3",
+        "npm:typescript@^5.9.3",
+        "npm:vite@^7.3.7"
+      ]
+    }
+  }
+}

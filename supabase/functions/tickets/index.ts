@@ -3,6 +3,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 import { acquiring } from "./acquiring.ts";
+import { local, SaleError } from "./local.ts";
 import { ticketon } from "./ticketon.ts";
 
 const cors = {
@@ -25,38 +26,51 @@ Deno.serve(async (req) => {
   const route = url.pathname.replace(/^.*\/tickets/, "") || "/";
 
   try {
-    // Уведомление банка проверяем первым: у него своя подпись.
+    // Уведомление FreedomPay проверяем первым: у него своя подпись и ответ в XML.
     if (req.method === "POST" && route === "/payments/callback") {
+      const xml = (body: string) => new Response(body, { headers: { "content-type": "application/xml" } });
       const result = await acquiring.handleCallback(req);
-      if (!result) return json({ error: "bad_signature" }, 400);
+      if (!result) return xml(await acquiring.callbackResponse("error", "bad signature"));
       const supabase = db();
+      const { data: order } = await supabase.from("orders").select("id, status, total").eq("id", result.orderId).single();
+      if (!order) return xml(await acquiring.callbackResponse("error", "order not found"));
       await supabase
         .from("payments")
         .update({ status: result.succeeded ? "succeeded" : "failed", raw: result.raw })
+        .eq("provider", acquiring.name())
         .eq("provider_payment_id", result.paymentId);
-      await supabase
-        .from("orders")
-        .update({ status: result.succeeded ? "paid" : "failed" })
-        .eq("id", result.orderId);
-      if (result.succeeded) await ticketon.confirmOrder(result.orderId);
-      return json({ ok: true });
+      // Повторное уведомление по уже оплаченному заказу ничего не меняет.
+      if (order.status !== "paid") {
+        if (result.succeeded && Number(result.raw.pg_amount) + 0.001 < Number(order.total)) {
+          return xml(await acquiring.callbackResponse("error", "amount mismatch"));
+        }
+        await supabase.from("orders").update({ status: result.succeeded ? "paid" : "failed" }).eq("id", order.id);
+        if (result.succeeded) {
+          if (ticketon.isConfigured()) await ticketon.confirmOrder(order.id);
+          else await local.confirmOrder(supabase, order.id);
+        }
+      }
+      return xml(await acquiring.callbackResponse("ok", "Order accepted"));
     }
 
-    if (!ticketon.isConfigured() || !acquiring.isConfigured()) {
+    // Ticketon необязателен: без него продаём по тарифам из админки.
+    if (!acquiring.isConfigured()) {
       return json({ error: "sales_not_configured" }, 503);
     }
+    const useTicketon = ticketon.isConfigured();
 
     if (req.method === "GET" && route === "/tickets/categories") {
       const eventId = url.searchParams.get("event");
       if (!eventId) return json({ error: "event_required" }, 400);
-      return json(await ticketon.getCategories(eventId));
+      const locale = url.searchParams.get("locale") ?? "ru";
+      return json(useTicketon ? await ticketon.getCategories(eventId) : await local.getCategories(db(), eventId, locale));
     }
 
     if (req.method === "POST" && route === "/orders") {
       const draft = await req.json();
       if (!draft.acceptedTerms) return json({ error: "terms_required" }, 400);
-      const reservation = await ticketon.reserve(draft);
       const supabase = db();
+      const reservation = useTicketon ? await ticketon.reserve(draft) : await local.reserve(supabase, draft);
       const { data: order, error } = await supabase
         .from("orders")
         .insert({
@@ -70,7 +84,7 @@ Deno.serve(async (req) => {
           currency: reservation.currency,
           accepted_terms_at: new Date().toISOString(),
           expires_at: reservation.expiresAt,
-          ticketon_order_id: reservation.ticketonOrderId,
+          ticketon_order_id: reservation.ticketonOrderId || null,
           ticketon_payload: reservation.raw,
         })
         .select("id, status, total, service_fee, currency, expires_at")
@@ -112,13 +126,15 @@ Deno.serve(async (req) => {
       const supabase = db();
       const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
       if (!order || order.status !== "pending") return json({ error: "order_not_payable" }, 409);
+      if (order.expires_at && new Date(order.expires_at) < new Date()) return json({ error: "order_expired" }, 409);
       const payment = await acquiring.createPayment({
         orderId,
         amount: Number(order.total),
         currency: order.currency,
         description: `Билеты, заказ ${order.number}`,
         email: order.buyer_email,
-        returnUrl,
+        phone: order.buyer_phone,
+        returnUrl: /^https:\/\/(www\.)?concerts\.kz\//.test(returnUrl) ? returnUrl : `${Deno.env.get("SITE_URL") ?? "https://concerts.kz"}/ru/orders/${orderId}`,
       });
       await supabase.from("payments").insert({
         order_id: orderId,
@@ -132,6 +148,7 @@ Deno.serve(async (req) => {
 
     return json({ error: "not_found" }, 404);
   } catch (error) {
+    if (error instanceof SaleError) return json({ error: error.message }, 409);
     console.error(error);
     return json({ error: "internal" }, 500);
   }

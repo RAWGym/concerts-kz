@@ -43,8 +43,8 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 const apiProvider: TicketProvider = {
-  getCategories: (event) =>
-    call(`/tickets/categories?event=${encodeURIComponent(event.id)}`),
+  getCategories: (event, locale) =>
+    call(`/tickets/categories?event=${encodeURIComponent(event.id)}&locale=${encodeURIComponent(locale ?? "ru")}`),
   createOrder: (draft) =>
     call("/orders", { method: "POST", body: JSON.stringify(draft) }),
   startPayment: (orderId, returnUrl) =>

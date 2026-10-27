@@ -14,10 +14,16 @@ Supabase Edge Function `tickets`. Сайт обращается к ней по �
 
 ## Секреты (Supabase → Edge Functions → Secrets)
 
-- `TICKETON_API_URL`, `TICKETON_API_KEY` — доступ к API Freedom Ticketon
-- `ACQUIRING_PROVIDER` — какой банк/шлюз (заполнится после договора)
-- `ACQUIRING_MERCHANT_ID`, `ACQUIRING_SECRET` — данные мерчанта
-- `SITE_URL` — https://concerts.kz
+- `ACQUIRING_MERCHANT_ID`: номер магазина FreedomPay (591190)
+- `ACQUIRING_SECRET`: секретный ключ для приёма платежей из кабинета FreedomPay
+- `ACQUIRING_TESTING`: `1` для тестового режима, удалить для боевых платежей
+- `PUBLIC_FUNCTION_URL`: https://jlpfqasntsnuzxlouqvq.supabase.co/functions/v1/tickets
+- `SITE_URL`: https://concerts.kz
+- `TICKETON_API_URL`, `TICKETON_API_KEY`: необязательно. Без них тарифы,
+  цены и остатки берутся из админки (таблица ticket_categories).
+
+Функция развёрнута с `verify_jwt = false` (см. supabase/config.toml):
+уведомления FreedomPay приходят без токена, подпись проверяется по pg_sig.
 
 Пока ключей нет, функция отвечает `503 sales_not_configured`, а сайт
 показывает «Онлайн-оплата подключается».
