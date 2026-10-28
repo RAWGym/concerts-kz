@@ -41,7 +41,7 @@ export type Recent = {
 export const sb = () => createBrowserSupabase();
 
 /** Вызов функции базы с ограничением по времени: зависший запрос не держит очередь. */
-export async function rpc<T>(fn: string, args: Record<string, unknown> = {}): Promise<T> {
+export async function rpc<T>(fn: string, args: Record<string, unknown> = {}, retried = false): Promise<T> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), RPC_TIMEOUT);
   try {
@@ -49,20 +49,41 @@ export async function rpc<T>(fn: string, args: Record<string, unknown> = {}): Pr
     const { data, error } = await (sb() as any).rpc(fn, args).abortSignal(ctrl.signal);
     if (error) throw Object.assign(new Error(error.message || "network"), { code: error.code, status: (error as { status?: number }).status });
     return data as T;
+  } catch (e) {
+    // Телефон долго спал и токен входа истёк: обновляем его и повторяем один раз.
+    if (!retried && isAuthError(e)) {
+      const { error } = await sb().auth.refreshSession();
+      if (!error) return rpc<T>(fn, args, true);
+    }
+    throw e;
   } finally {
     clearTimeout(timer);
   }
 }
+
+export const isAuthError = (e: unknown) => {
+  const x = e as { code?: string; status?: number; message?: string };
+  return x?.code === "PGRST301" || x?.code === "PGRST303" || x?.status === 401 || /jwt|token is expired|invalid claim/i.test(x?.message ?? "");
+};
 
 export const isNetworkError = (e: unknown) => {
   const m = `${(e as Error)?.name ?? ""} ${(e as Error)?.message ?? ""}`;
   return /abort|network|fetch|failed to|load failed|timeout/i.test(m) || !navigator.onLine;
 };
 
+/** Открыто с иконки на экране «Домой» (PWA), а не во вкладке браузера. */
+export const isStandalone = () =>
+  window.matchMedia?.("(display-mode: standalone)").matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
+
+/** iPhone или iPad (новые iPad представляются как Mac с сенсорным экраном). */
+export const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
 export function deviceLabel() {
   const app = native()?.version?.();
-  const ua = navigator.userAgent.match(/Android [\d.]+; ([^;)]+)/)?.[1] ?? navigator.platform;
-  return [app ? `APK ${app}` : "Браузер", ua].filter(Boolean).join(" · ").slice(0, 120);
+  const ua = navigator.userAgent;
+  const model = ua.match(/Android [\d.]+; ([^;)]+)/)?.[1] ?? (/iPhone|iPad|iPod/.test(ua) ? `iOS ${ua.match(/OS (\d+)[_\d]*/)?.[1] ?? ""}`.trim() : navigator.platform);
+  const kind = app ? `APK ${app}` : isStandalone() ? (isIOS() ? "Приложение iPhone" : "Приложение PWA") : "Браузер";
+  return [kind, model].filter(Boolean).join(" · ").slice(0, 120);
 }
 
 export const fmtTime = (iso: string | null | undefined, tz = "Asia/Almaty") =>
