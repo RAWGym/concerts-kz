@@ -127,6 +127,11 @@ export function SiteFooter({ locale, t }: { locale: Locale; t: Dictionary }) {
             </Link>
           </div>
         </div>
+
+        <p className="mt-8 flex items-center justify-center gap-2 text-[11px] text-fg-subtle">
+          <img src="/raw-development.png" alt="RAW Development" width={30} height={12} className="h-3.5 w-auto opacity-70" loading="lazy" />
+          <span>{t.footer.madeBy}</span>
+        </p>
       </div>
     </footer>
   );

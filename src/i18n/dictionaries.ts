@@ -199,6 +199,7 @@ const ru = {
     requisites: "Реквизиты",
     payment: "Оплата и безопасность",
     howToBuy: "Как купить билет",
+    madeBy: "Сайт разработан RAW Development в 2026 году",
     delivery: "Доставка билетов",
   },
   checkout: {
@@ -466,6 +467,7 @@ const kz: Dictionary = {
     requisites: "Деректемелер",
     payment: "Төлем және қауіпсіздік",
     howToBuy: "Билетті қалай сатып алу",
+    madeBy: "Сайтты 2026 жылы RAW Development әзірледі",
     delivery: "Билеттерді жеткізу",
   },
   checkout: {
@@ -730,6 +732,7 @@ const en: Dictionary = {
     requisites: "Company details",
     payment: "Payment and security",
     howToBuy: "How to buy",
+    madeBy: "Website developed by RAW Development in 2026",
     delivery: "Ticket delivery",
   },
   checkout: {
