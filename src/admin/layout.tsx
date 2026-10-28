@@ -123,6 +123,7 @@ export function AdminLayout() {
     {
       title: "Продажи",
       links: [
+        { to: "/admin/finance", label: "Финансы", show: isAdmin || staff.role === "sales" },
         { to: "/admin/orders", label: "Заказы", show: true },
         { to: "/admin/leads", label: "Заявки", show: true, badge: newLeads },
       ],

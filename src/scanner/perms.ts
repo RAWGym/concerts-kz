@@ -103,13 +103,21 @@ export function systemNotify(id: number, title: string, body: string) {
     app.showNotification(id, title, body);
     return;
   }
-  if ("Notification" in window && Notification.permission === "granted") {
-    try {
-      new Notification(title, { body, icon: "/icon-192.png", tag: String(id) });
-    } catch {
-      /* на телефоне браузер может не показать уведомление без service worker */
-    }
-  }
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+  const opts = { body, icon: "/scanner/icon-192.png", badge: "/scanner/icon-192.png", tag: String(id) };
+  // На iPhone и Android уведомление показывает только service worker.
+  navigator.serviceWorker?.getRegistration("/scanner/")
+    .then(async (reg) => {
+      if (reg) await reg.showNotification(title, opts);
+      else new Notification(title, opts);
+    })
+    .catch(() => {
+      try {
+        new Notification(title, opts);
+      } catch {
+        /* браузер не умеет показывать уведомления */
+      }
+    });
 }
 
 /** Напоминание в заданное время. Работает только в Android-приложении. */

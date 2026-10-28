@@ -1,0 +1,18 @@
+{
+  "id": "/scanner/",
+  "name": "Concerts Сканер",
+  "short_name": "Сканер",
+  "description": "Проверка билетов на входе концертов Concerts Prod",
+  "lang": "ru",
+  "start_url": "/scanner/",
+  "scope": "/scanner/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#050505",
+  "theme_color": "#050505",
+  "icons": [
+    { "src": "/scanner/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/scanner/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/scanner/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -10,6 +10,7 @@ import {
   doorsAt,
   fmtDate,
   fmtTime,
+  isAuthError,
   isNetworkError,
   rpc,
   sb,
@@ -23,8 +24,9 @@ import { feedback, native, unlockAudio } from "./feedback";
 import { History } from "./history";
 import { Onboarding, isOnboarded, onboardedKey } from "./onboarding";
 import { Profile } from "./profile";
+import { needsIOSInstall, registerScannerSW, useWebUpdate } from "./pwa";
 import { store, useSettings } from "./settings";
-import { Icon, Logo, NetBadge, TabHeader } from "./ui";
+import { Icon, Logo, NetBadge, Sheet, TabHeader } from "./ui";
 
 /* ============================================================
    Приложение тикетора: /scanner.
@@ -82,6 +84,7 @@ export default function ScannerApp() {
 
   useEffect(() => {
     document.title = "Сканер билетов · Concerts";
+    registerScannerSW();
     document.documentElement.style.background = "#050505";
     const client = sb();
     client.auth.getSession().then(({ data }) => setSession(data.session));
@@ -94,6 +97,11 @@ export default function ScannerApp() {
     try {
       setMe(await rpc<Me>("scanner_me"));
     } catch (e) {
+      // Вход больше не действует (пароль сменили, аккаунт удалён): на экран входа.
+      if (isAuthError(e)) {
+        await sb().auth.signOut({ scope: "local" }).catch(() => undefined);
+        return;
+      }
       setMeError(isNetworkError(e) ? "Нет связи с сервером. Проверьте интернет." : (e as Error).message);
     }
   }, []);
@@ -183,6 +191,8 @@ function Shell({ me, email, onRefresh, onSignOut, onRedoSetup }: { me: Me; email
   const [choosingGate, setChoosingGate] = useState<EventItem | null>(null);
   const online = useOnline();
   const alerts = useAlerts(me);
+  // Новая версия сайта: перезагружаемся, когда тикетор не на экране сканера.
+  useWebUpdate(tab !== "scan");
   const event = me.events.find((e) => e.id === eventId) ?? null;
 
   // Сняли с концерта, пока он был открыт: возвращаем к списку.
@@ -335,6 +345,8 @@ function Login() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const appVersion = native()?.version?.();
+  const [iosInstall] = useState(needsIOSInstall);
+  const [installHelp, setInstallHelp] = useState(false);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -360,6 +372,16 @@ function Login() {
         <Logo />
         <p className="mt-10 font-display text-[11px] font-bold uppercase tracking-[0.16em] text-coral">Вход для тикетора</p>
         <h1 className="mt-2 font-display text-3xl font-bold uppercase leading-[1.05]">Сканер<br />билетов</h1>
+        {iosInstall && (
+          <button type="button" onClick={() => setInstallHelp(true)} className="mt-6 flex w-full items-center gap-3 rounded-card border border-coral/40 bg-coral/10 p-4 text-left">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] bg-coral text-white">{Icon.download("h-5 w-5")}</span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold">Установите приложение</span>
+              <span className="block text-xs leading-5 text-fg-muted">Иконка на экране, полный экран и обновления. Займёт 10 секунд.</span>
+            </span>
+            {Icon.chevron("h-5 w-5 shrink-0 text-fg-subtle")}
+          </button>
+        )}
         <form onSubmit={submit} className="mt-8 space-y-3">
           <input id="login" className={input} placeholder="Логин" autoCapitalize="none" autoCorrect="off" autoComplete="username" value={login} onChange={(e) => setLogin(e.target.value)} required />
           <div className="relative">
@@ -372,7 +394,37 @@ function Login() {
         <p className="mt-6 text-xs leading-5 text-fg-subtle">Аккаунт выдаёт администратор. Забыли пароль? Попросите администратора задать новый.</p>
         {appVersion && <p className="mt-2 text-[11px] text-fg-faint">Версия приложения {appVersion}</p>}
       </div>
+      {installHelp && <InstallSheet onClose={() => setInstallHelp(false)} />}
     </div>
+  );
+}
+
+/** Как поставить сканер на экран «Домой» iPhone. */
+function InstallSheet({ onClose }: { onClose: () => void }) {
+  const safari = /Safari/.test(navigator.userAgent) && !/CriOS|FxiOS|EdgiOS|YaBrowser/.test(navigator.userAgent);
+  const steps: [ReactNode, string, string][] = [
+    [<svg key="s" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v12M8 7l4-4 4 4M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" /></svg>, "Нажмите «Поделиться»", safari ? "Кнопка внизу экрана Safari (на iPad вверху)." : "В меню браузера. Если пункта нет, откройте эту страницу в Safari."],
+    [<svg key="p" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="4" y="4" width="16" height="16" rx="4" /><path d="M12 8v8M8 12h8" /></svg>, "«На экран Домой»", "Пролистайте список действий вниз, если пункта не видно."],
+    [Icon.check("h-5 w-5"), "Нажмите «Добавить»", "На экране появится иконка «Сканер». Открывайте приложение с неё и войдите там."],
+  ];
+  return (
+    <Sheet title="Установка на iPhone" onClose={onClose}>
+      <ol className="space-y-4">
+        {steps.map(([icon, t, d], i) => (
+          <li key={t} className="flex gap-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] bg-ink text-coral">{icon}</span>
+            <span>
+              <span className="block text-sm font-semibold">{i + 1}. {t}</span>
+              <span className="block text-[13px] leading-5 text-fg-muted">{d}</span>
+            </span>
+          </li>
+        ))}
+      </ol>
+      <p className="mt-5 rounded-btn bg-ink px-4 py-3 text-[13px] leading-5 text-fg-muted">
+        Приложение обновляется само: каждый запуск открывает свежую версию. Камеру iPhone может спросить при первом сканировании.
+      </p>
+      <button className="btn btn-secondary mt-5 w-full py-3.5" onClick={onClose}>Понятно</button>
+    </Sheet>
   );
 }
 

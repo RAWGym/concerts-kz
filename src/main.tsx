@@ -65,6 +65,7 @@ const router = createBrowserRouter([
       { path: "events/:id", element: admin(() => import("@/admin/event-edit")) },
       { path: "venues", element: admin(() => import("@/admin/venues")) },
       { path: "orders", element: admin(() => import("@/admin/orders")) },
+      { path: "finance", element: admin(() => import("@/admin/finance")) },
       { path: "leads", element: admin(() => import("@/admin/leads")) },
       { path: "staff", element: admin(() => import("@/admin/staff")) },
       { path: "account", element: admin(() => import("@/admin/account")) },

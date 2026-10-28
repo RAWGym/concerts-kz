@@ -69,7 +69,13 @@ export function timeIn(iso: string | null, tz = "Asia/Almaty") {
 
 /** CSV для Excel (точка с запятой, BOM для кириллицы). */
 export function downloadCsv(name: string, head: string[], rows: (string | number | null | undefined)[][]) {
-  const csv = [head, ...rows].map((r) => r.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(";")).join("\r\n");
+  const cell = (v: string | number | null | undefined) => {
+    let s = String(v ?? "");
+    // Имя или e-mail покупателя вида «=HYPERLINK(...)» Excel принял бы за формулу.
+    if (typeof v === "string" && /^[=+\-@\t\r]/.test(s) && !/^\+?[\d\s()-]+$/.test(s)) s = `'${s}`;
+    return `"${s.replace(/"/g, '""')}"`;
+  };
+  const csv = [head, ...rows].map((r) => r.map(cell).join(";")).join("\r\n");
   const url = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }));
   const a = document.createElement("a");
   a.href = url;
