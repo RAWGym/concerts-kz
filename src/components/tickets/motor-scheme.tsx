@@ -69,7 +69,7 @@ export const MOTOR_TEXT: Record<
     soldOut: "все места заняты",
     zones: {
       dancefloor: { name: "Танцпол", note: "1 этаж, у сцены, без мест" },
-      "vip-table": { name: "VIP со столом", note: "2 этаж, место за столом, 6 мест у стола" },
+      "vip-table": { name: "VIP со столом", note: "2 этаж, стол на компанию до 6 человек" },
       "vip-floor2": { name: "VIP доступ на 2 этаж", note: "2 этаж, без рассадки" },
     },
   },
@@ -95,7 +95,7 @@ export const MOTOR_TEXT: Record<
     soldOut: "барлық орын бос емес",
     zones: {
       dancefloor: { name: "Танцпол", note: "1 қабат, сахна жанында, орынсыз" },
-      "vip-table": { name: "Үстелі бар VIP", note: "2 қабат, үстел басындағы орын, үстелде 6 орын" },
+      "vip-table": { name: "Үстелі бар VIP", note: "2 қабат, 6 адамға дейінгі компанияға үстел" },
       "vip-floor2": { name: "2 қабатқа VIP кіру", note: "2 қабат, орынсыз" },
     },
   },
@@ -121,7 +121,7 @@ export const MOTOR_TEXT: Record<
     soldOut: "fully booked",
     zones: {
       dancefloor: { name: "Dance floor", note: "Floor 1, by the stage, standing" },
-      "vip-table": { name: "VIP table", note: "Floor 2, a seat at a table, 6 seats per table" },
+      "vip-table": { name: "VIP table", note: "Floor 2, a table for up to 6 guests" },
       "vip-floor2": { name: "VIP access to floor 2", note: "Floor 2, standing" },
     },
   },

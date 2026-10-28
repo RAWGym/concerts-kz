@@ -13,7 +13,7 @@ import type { EventDetail } from "@/lib/data/types";
 import { formatEventDateTime, formatMoney } from "@/lib/format";
 import { useSession } from "@/lib/account/session";
 import { getTakenSeats, isSalesEnabled, TicketApiError, tickets } from "@/lib/tickets/provider";
-import { parseSeat, seatId, TABLE_SEATS } from "@/lib/tickets/seats";
+import { parseSeat, seatId, TABLE_SEATS, TABLES_SOLD_WHOLE, tableOf } from "@/lib/tickets/seats";
 import type { TicketCategory } from "@/lib/tickets/types";
 import {
   MOTOR_TEXT,
@@ -111,27 +111,43 @@ function Checkout({
       : `${localePath(locale, "/login")}?next=${encodeURIComponent(window.location.pathname)}`;
 
   const [rawQty, setQty] = useState<Record<string, number>>({});
-  // Места за столами: "table-7-3". Количество билетов на столы = число мест.
+  // Места за столами: "table-7-3". Стол продаётся целиком по цене тарифа,
+  // отмеченные места = гости (билет на каждого). В сумме считаем столы.
   const [seats, setSeats] = useState<string[]>([]);
   const [openTable, setOpenTable] = useState<number | null>(null);
-  const [taken, setTaken] = useState<Set<string>>(() => new Set());
+  const [rawTaken, setTaken] = useState<Set<string>>(() => new Set());
+  // Стол, где занято хоть одно место, уже чей-то: показываем занятым целиком.
+  const taken = useMemo(() => {
+    if (!TABLES_SOLD_WHOLE) return rawTaken;
+    const out = new Set<string>();
+    for (const id of rawTaken) {
+      const n = tableOf(id);
+      if (n !== null) for (let i = 1; i <= TABLE_SEATS; i++) out.add(seatId(n, i));
+    }
+    return out;
+  }, [rawTaken]);
+  const chosenTables = useMemo(() => [...new Set(seats.map(tableOf))].filter((n): n is number => n !== null), [seats]);
   const qty = useMemo(
-    () => (motor ? { ...rawQty, "vip-table": seats.length } : rawQty),
-    [motor, rawQty, seats],
+    () => (motor ? { ...rawQty, "vip-table": TABLES_SOLD_WHOLE ? chosenTables.length : seats.length } : rawQty),
+    [motor, rawQty, seats, chosenTables],
   );
   const tbd = categories.some((cat) => cat.priceTbd && (qty[cat.id] ?? 0) > 0);
   const [accepted, setAccepted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const tableCat = motor ? categories.find((cat) => cat.id === "vip-table") : undefined;
-  const seatLimit = tableCat ? Math.max(1, tableCat.maxPerOrder) : TABLE_SEATS;
+  // «Макс. в заказе» у тарифа со столами — сколько столов можно взять в один заказ.
+  const tableLimit = tableCat ? Math.max(1, tableCat.maxPerOrder) : 1;
+  const limitText = c.tableLimit.replace("{n}", String(tableLimit));
+  const wouldExceed = (table: number) => !chosenTables.includes(table) && chosenTables.length >= tableLimit;
 
   // Занятые места: при открытии страницы и при выборе стола (вдруг кто-то успел купить).
   const refreshTaken = useCallback(async () => {
     if (!motor) return new Set<string>();
     const fresh = new Set(await getTakenSeats(event.id));
     setTaken(fresh);
-    setSeats((prev) => prev.filter((s) => !fresh.has(s)));
+    const busyTables = new Set([...fresh].map(tableOf));
+    setSeats((prev) => prev.filter((s) => !fresh.has(s) && !(TABLES_SOLD_WHOLE && busyTables.has(tableOf(s)))));
     return fresh;
   }, [motor, event.id]);
   useEffect(() => {
@@ -148,8 +164,9 @@ function Checkout({
   }
   function toggleSeat(id: string) {
     if (taken.has(id)) return;
-    if (!seats.includes(id) && seats.length >= seatLimit) {
-      setError(c.seatLimit.replace("{n}", String(seatLimit)));
+    const table = tableOf(id);
+    if (!seats.includes(id) && table !== null && wouldExceed(table)) {
+      setError(limitText);
       return;
     }
     setError(null);
@@ -161,11 +178,13 @@ function Checkout({
       setSeats((prev) => prev.filter((x) => !ids.includes(x)));
       return;
     }
+    if (wouldExceed(n)) {
+      setError(limitText);
+      return;
+    }
+    setError(null);
     const free = ids.filter((id) => !taken.has(id));
-    const room = seatLimit - seats.length;
-    if (room < free.length) setError(c.seatLimit.replace("{n}", String(seatLimit)));
-    else setError(null);
-    if (room > 0) setSeats((prev) => sortSeats([...prev, ...free.slice(0, room)]));
+    setSeats((prev) => sortSeats([...prev, ...free]));
   }
   const [busy, setBusy] = useState(false);
 
@@ -211,8 +230,8 @@ function Checkout({
           .filter(([, n]) => n > 0)
           .map(([categoryId, quantity]) => ({
             categoryId: categories.find((cat) => cat.id === categoryId)?.serverId ?? categoryId,
-            quantity,
-            ...(categoryId === "vip-table" && motor ? { seats } : {}),
+            // За столы — билет на каждое отмеченное место (гостя).
+            ...(categoryId === "vip-table" && motor ? { quantity: seats.length, seats } : { quantity }),
           })),
         buyer,
         locale,
@@ -227,7 +246,7 @@ function Checkout({
         await refreshTaken();
         setError(c.seatTaken);
       } else if (err instanceof TicketApiError && err.code === "bad_quantity") {
-        setError(c.seatLimit.replace("{n}", String(seatLimit)));
+        setError(limitText);
       } else {
         setError(c.error);
       }
@@ -318,7 +337,7 @@ function Checkout({
                           ? c.soldOut
                           : cat.priceTbd
                             ? c.priceTbd
-                            : `${formatMoney(cat.price, cat.currency, locale)} ${cat.id === "vip-table" && motor ? c.perSeat : c.perTicket}`}
+                            : `${formatMoney(cat.price, cat.currency, locale)} ${cat.id === "vip-table" && motor ? (TABLES_SOLD_WHOLE ? c.perTable : c.perSeat) : c.perTicket}`}
                       </p>
                       {motor && cat.id === "vip-table" && (
                         <div className="mt-3 flex flex-wrap gap-2">

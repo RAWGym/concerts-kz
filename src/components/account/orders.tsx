@@ -13,7 +13,7 @@ import { formatEventDateTime, formatMoney } from "@/lib/format";
 import { resendTickets } from "@/lib/tickets/provider";
 
 import { EmptyPanel, StatusPill } from "./ui";
-import { seatName } from "@/lib/tickets/seats";
+import { groupItemsByTable, seatName, tableSeatsName } from "@/lib/tickets/seats";
 
 /** Вкладка «Заказы»: список с раскрывающимися деталями. */
 export function OrdersTab({
@@ -108,16 +108,18 @@ export function OrdersTab({
                         {t.items}
                       </p>
                       <ul className="mt-2 space-y-2">
-                        {order.items.map((item) => (
+                        {groupItemsByTable(order.items).map((item) => (
                           <li key={item.id} className="flex items-baseline justify-between gap-4 text-sm">
                             <span className="text-fg">
                               {item.categoryName}
-                              {item.seatLabel ? ` · ${seatName(item.seatLabel, locale)}` : ""}
+                              {item.table !== null
+                                ? ` · ${tableSeatsName(item.table, item.seats, locale)}`
+                                : item.label
+                                  ? ` · ${seatName(item.label, locale)}`
+                                  : ""}
                               <span className="text-fg-subtle"> × {item.quantity}</span>
                             </span>
-                            <span className="text-fg-muted">
-                              {formatMoney(item.unitPrice * item.quantity, order.currency, locale)}
-                            </span>
+                            <span className="text-fg-muted">{formatMoney(item.amount, order.currency, locale)}</span>
                           </li>
                         ))}
                       </ul>
