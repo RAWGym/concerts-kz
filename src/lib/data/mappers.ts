@@ -66,8 +66,9 @@ export function toEventCard(raw: RawEvent, locale: Locale): EventCard {
     priceFrom: raw.price_from,
     currency: raw.currency,
     badge: raw.badge,
-    // Отменённый концерт не продаётся: везде ведёт себя как распроданный.
-    isSoldOut: raw.is_sold_out || raw.change_kind === "cancelled",
+    // Отменённый концерт и закрытые продажи: везде без кнопки покупки.
+    isSoldOut: raw.is_sold_out || raw.change_kind === "cancelled" || Boolean(raw.sales_closed),
+    salesClosed: Boolean(raw.sales_closed) && !raw.is_sold_out && raw.change_kind !== "cancelled",
     isFeatured: raw.is_featured,
     posterUrl: raw.poster_url,
     coverUrl: raw.cover_url,

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { unavailableLabel } from "@/lib/data/sales-label";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -174,7 +175,7 @@ export default async function EventPage({
                     <Link href={localePath(locale, "/reports")} className="btn btn-primary">{l.reports}</Link>
                   </>
                 ) : event.isSoldOut ? (
-                  <span className="btn btn-secondary cursor-default opacity-70">{event.changeKind === "cancelled" ? l.cancelled : t.actions.soldOut}</span>
+                  <span className="btn btn-secondary cursor-default opacity-70">{event.changeKind === "cancelled" ? l.cancelled : unavailableLabel(event, t)}</span>
                 ) : (
                   <>
                     <Link href={buyHref} target={external ? "_blank" : undefined} rel={external ? "noreferrer" : undefined} className="btn btn-primary">

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { unavailableLabel } from "@/lib/data/sales-label";
 
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries";
@@ -86,7 +87,7 @@ export function EventCard({
             {event.changeKind === "cancelled"
               ? t.actions.cancelled
               : event.isSoldOut
-                ? t.actions.soldOut
+                ? unavailableLabel(event, t)
                 : `${event.changeKind === "postponed" ? `${t.actions.postponed} · ` : ""}${price ?? t.actions.soon}`}
           </p>
         )}

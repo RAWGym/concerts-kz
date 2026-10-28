@@ -36,6 +36,7 @@ type Form = {
   badge: keyof typeof badges;
   is_featured: boolean;
   is_sold_out: boolean;
+  sales_closed: boolean;
   ticketon_url: string;
   upgrades_enabled: boolean;
 };
@@ -86,7 +87,7 @@ export default function EventEdit() {
     if (isNew && !copyFrom) {
       setForm({
         slug: "", status: "draft", category: "concert", venue_id: "", starts: "", doors: "", age_limit: "",
-        poster_url: "", currency: "KZT", badge: "none", is_featured: false, is_sold_out: false, ticketon_url: "", upgrades_enabled: false,
+        poster_url: "", currency: "KZT", badge: "none", is_featured: false, is_sold_out: false, sales_closed: false, ticketon_url: "", upgrades_enabled: false,
       });
       setCats([{ code: "standard", name: "Стандартный", price: "", available: "", max_per_order: "6", is_active: true, upgrade_to: [] }]);
       return;
@@ -103,7 +104,7 @@ export default function EventEdit() {
           slug: copyFrom ? `${e.slug}-copy` : e.slug, status: copyFrom ? "draft" : e.status, category: e.category, venue_id: e.venue_id ?? "",
           starts: toLocalInput(e.starts_at, zone), doors: toLocalInput(e.doors_open_at, zone),
           age_limit: e.age_limit?.toString() ?? "", poster_url: e.poster_url ?? "", currency: e.currency,
-          badge: e.badge, is_featured: e.is_featured, is_sold_out: e.is_sold_out, ticketon_url: e.ticketon_url ?? "",
+          badge: e.badge, is_featured: e.is_featured, is_sold_out: e.is_sold_out, sales_closed: Boolean(e.sales_closed), ticketon_url: e.ticketon_url ?? "",
           upgrades_enabled: copyFrom ? false : Boolean(e.upgrades_enabled),
         });
         if (!copyFrom) {
@@ -180,6 +181,7 @@ export default function EventEdit() {
       badge: form.badge,
       is_featured: form.is_featured,
       is_sold_out: form.is_sold_out,
+      sales_closed: form.sales_closed,
       ticketon_url: form.ticketon_url || null,
       ...(canUpgrades ? { upgrades_enabled: form.upgrades_enabled } : {}),
       price_from: activePrices.length ? Math.min(...activePrices) : null,
@@ -436,6 +438,15 @@ export default function EventEdit() {
             <label className="flex items-center gap-2 text-sm text-fg-muted">
               <input type="checkbox" checked={form.is_sold_out} onChange={(e) => set("is_sold_out", e.target.checked)} className="accent-[#ff4d4d]" />
               Билеты распроданы
+            </label>
+            <label className="flex items-start gap-2 text-sm text-fg-muted">
+              <input type="checkbox" checked={form.sales_closed} onChange={(e) => set("sales_closed", e.target.checked)} className="mt-1 accent-[#ff4d4d]" />
+              <span>
+                Продажи закрыты
+                <span className="block text-[11px] text-fg-subtle">
+                  Событие на сайте, купить нельзя. С меткой «Скоро» покупатели видят «Продажи скоро откроются».
+                </span>
+              </span>
             </label>
           </Card>
 
