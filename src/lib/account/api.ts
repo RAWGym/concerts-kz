@@ -133,15 +133,21 @@ export async function signOut() {
   await createBrowserSupabase().auth.signOut();
 }
 
-/** Есть ли у пользователя роль в админке — тогда покажем ссылку туда. */
+/** Есть ли у пользователя роль в админке — тогда покажем ссылку туда. Тикетор в админку не ходит. */
 export async function isStaff(userId: string): Promise<boolean> {
-  if (!isSupabaseConfigured) return false;
+  return (await staffHome(userId)) === "/admin";
+}
+
+/** Куда вести сотрудника после входа: админка, сканер билетов или никуда (покупатель). */
+export async function staffHome(userId: string): Promise<"/admin" | "/scanner" | null> {
+  if (!isSupabaseConfigured) return null;
   const { data } = await client()
     .from("admins")
-    .select("user_id")
+    .select("role")
     .eq("user_id", userId)
     .maybeSingle();
-  return Boolean(data);
+  if (!data) return null;
+  return data.role === "scanner" ? "/scanner" : "/admin";
 }
 
 /** Адрес, на который Supabase вернёт из письма. */

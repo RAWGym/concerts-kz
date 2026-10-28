@@ -15,6 +15,11 @@ import type { TicketView } from "@/lib/tickets/types";
 const L = {
   ru: {
     eticket: "Электронный билет",
+    invite: "Пригласительный билет",
+    guest: "Гость",
+    issued: "Выписан",
+    used: "По этому билету уже прошли",
+    voided: "Билет аннулирован и недействителен",
     of: "из",
     category: "Тариф",
     seat: "Место",
@@ -38,6 +43,11 @@ const L = {
   },
   kz: {
     eticket: "Электронды билет",
+    invite: "Шақыру билеті",
+    guest: "Қонақ",
+    issued: "Берілген күні",
+    used: "Бұл билет бойынша кіріп қойған",
+    voided: "Билет жойылған, жарамсыз",
     of: "/",
     category: "Тариф",
     seat: "Орын",
@@ -61,6 +71,11 @@ const L = {
   },
   en: {
     eticket: "E-ticket",
+    invite: "Invitation",
+    guest: "Guest",
+    issued: "Issued",
+    used: "This ticket has already been used",
+    voided: "This ticket has been cancelled",
     of: "of",
     category: "Tariff",
     seat: "Seat",
@@ -111,9 +126,11 @@ export default function TicketPage() {
     <Section>
       <div className="mx-auto max-w-[760px]">
         <div className="mb-6 flex flex-wrap justify-end gap-3 print:hidden">
-          <Link href={localePath(locale, "/account")} className="btn btn-secondary">
-            {t.account}
-          </Link>
+          {ticket.kind !== "invite" && (
+            <Link href={localePath(locale, "/account")} className="btn btn-secondary">
+              {t.account}
+            </Link>
+          )}
           <button type="button" onClick={() => window.print()} className="btn btn-primary">
             {t.print}
           </button>
@@ -148,6 +165,8 @@ export function TicketSheet({ ticket, locale }: { ticket: TicketView; locale: Lo
       }).format(new Date(ticket.purchasedAt))
     : "–";
   const place = [e.city, e.venue, e.address].filter(Boolean).join(" · ");
+  const invite = ticket.kind === "invite";
+  const stateNote = ticket.status === "used" ? t.used : ticket.status === "void" ? t.voided : null;
 
   return (
     <article className="ticket-print overflow-hidden rounded-[22px] bg-white text-[#0d0d0d] shadow-[0_30px_80px_-40px_rgba(255,77,77,0.45)] [print-color-adjust:exact] [-webkit-print-color-adjust:exact]">
@@ -161,11 +180,15 @@ export function TicketSheet({ ticket, locale }: { ticket: TicketView; locale: Lo
         <div className="relative flex items-center justify-between gap-4">
           <Logo height={30} />
           <p className="text-right font-display text-[10px] font-semibold uppercase tracking-[0.16em] text-[#ff4d4d]">
-            {t.eticket}
-            <br />
-            <span className="text-white/50">
-              {ticket.index} {t.of} {ticket.count}
-            </span>
+            {invite ? t.invite : t.eticket}
+            {!invite && (
+              <>
+                <br />
+                <span className="text-white/50">
+                  {ticket.index} {t.of} {ticket.count}
+                </span>
+              </>
+            )}
           </p>
         </div>
         <p className="relative mt-7 font-display text-xs font-semibold uppercase tracking-[0.14em] text-[#ff4d4d]">
@@ -186,14 +209,28 @@ export function TicketSheet({ ticket, locale }: { ticket: TicketView; locale: Lo
       <div className="grid sm:grid-cols-[1fr_250px]">
         {/* данные */}
         <dl className="grid grid-cols-2 gap-x-6 gap-y-5 px-6 py-7 text-sm sm:px-8">
-          <Fact label={t.category} value={ticket.category} strong />
-          <Fact label={t.seat} value={seatLabel(ticket.seat, locale)} strong />
-          <Fact label={t.price} value={formatMoney(ticket.price, ticket.currency, locale)} />
-          <Fact label={t.order} value={`№ ${ticket.orderNumber}`} />
-          <Fact label={t.buyer} value={ticket.buyer.name} />
-          <Fact label={t.bought} value={bought} />
-          <Fact label={t.email} value={ticket.buyer.email} />
-          <Fact label={t.phone} value={ticket.buyer.phone} />
+          {stateNote && (
+            <p className="col-span-2 rounded-xl bg-[#ff4d4d]/10 px-4 py-3 text-sm font-semibold text-[#d93030]">{stateNote}</p>
+          )}
+          {invite ? (
+            <>
+              <Fact label={t.category} value={ticket.category} strong />
+              <Fact label={t.guest} value={ticket.buyer.name || "–"} strong />
+              <Fact label={t.phone} value={ticket.buyer.phone} />
+              <Fact label={t.issued} value={bought} />
+            </>
+          ) : (
+            <>
+              <Fact label={t.category} value={ticket.category} strong />
+              <Fact label={t.seat} value={seatLabel(ticket.seat, locale)} strong />
+              <Fact label={t.price} value={formatMoney(ticket.price, ticket.currency, locale)} />
+              <Fact label={t.order} value={`№ ${ticket.orderNumber}`} />
+              <Fact label={t.buyer} value={ticket.buyer.name} />
+              <Fact label={t.bought} value={bought} />
+              <Fact label={t.email} value={ticket.buyer.email} />
+              <Fact label={t.phone} value={ticket.buyer.phone} />
+            </>
+          )}
           {e.ageLimit != null && e.ageLimit > 0 && <Fact label={t.age} value={`${e.ageLimit}+`} />}
         </dl>
 

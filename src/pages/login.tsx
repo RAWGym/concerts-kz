@@ -10,7 +10,7 @@ import { defaultLocale, isLocale } from "@/i18n/config";
 import { localePath } from "@/i18n/routing";
 import { CodeInput } from "@/components/account/code-input";
 import { onboardingLabels } from "@/i18n/onboarding";
-import { authRedirect, isStaff } from "@/lib/account/api";
+import { authRedirect, staffHome } from "@/lib/account/api";
 import {
   CODE_LENGTH,
   isOnboarded,
@@ -110,7 +110,8 @@ export default function LoginPage() {
       try {
         const user = await verifyEmailCode(email, value);
         if (isOnboarded(user.user_metadata)) {
-          navigate((await isStaff(user.id)) && !next ? "/admin" : after, { replace: true });
+          const home = await staffHome(user.id);
+          navigate(home && !next ? home : after, { replace: true });
         } else {
           navigate(welcome, { replace: true });
         }
@@ -164,7 +165,8 @@ export default function LoginPage() {
           setNotice({ kind: "error", text: t.errorLogin });
           return;
         }
-        navigate((await isStaff(data.user.id)) && !next ? "/admin" : after, { replace: true });
+        const home = await staffHome(data.user.id);
+        navigate(home && !next ? home : after, { replace: true });
         return;
       }
 

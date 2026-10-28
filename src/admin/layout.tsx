@@ -6,7 +6,16 @@ import { canEdit, db, roleLabels, type Role } from "./db";
 import { ToastProvider } from "./toast";
 import { Spinner } from "./ui";
 
-type Staff = { userId: string; email: string; role: Role; fullName: string | null };
+type Staff = {
+  userId: string;
+  email: string;
+  role: Role;
+  fullName: string | null;
+  /** Может создавать тикеторов и настраивать входы. */
+  canScanners: boolean;
+  /** Может выписывать пригласительные. */
+  canInvites: boolean;
+};
 
 const StaffContext = createContext<Staff | null>(null);
 
@@ -45,16 +54,21 @@ export function AdminLayout() {
     }
     db()
       .from("admins")
-      .select("role, full_name")
+      .select("role, full_name, can_manage_scanners, can_issue_invites, is_active")
       .eq("user_id", session.user.id)
       .maybeSingle()
-      .then(({ data }) =>
-        setStaff(
-          data
-            ? { userId: session.user.id, email: session.user.email ?? "", role: data.role as Role, fullName: data.full_name }
-            : null,
-        ),
-      );
+      .then(({ data }) => {
+        if (!data || data.is_active === false) return setStaff(null);
+        const admin = data.role === "admin";
+        setStaff({
+          userId: session.user.id,
+          email: session.user.email ?? "",
+          role: data.role as Role,
+          fullName: data.full_name,
+          canScanners: admin || Boolean(data.can_manage_scanners),
+          canInvites: admin || Boolean(data.can_issue_invites),
+        });
+      });
   }, [session]);
 
   if (session === undefined || (session && staff === undefined)) return <Spinner />;
@@ -63,6 +77,21 @@ export function AdminLayout() {
   async function signOut() {
     await db().auth.signOut();
     navigate("/ru/login");
+  }
+
+  if (staff?.role === "scanner") {
+    return (
+      <div className="mx-auto max-w-md px-5 py-24 text-center">
+        <h1 className="font-display text-2xl font-bold uppercase text-fg">Аккаунт тикетора</h1>
+        <p className="mt-3 text-sm text-fg-muted">
+          Этот аккаунт работает только в сканере билетов. Откройте приложение или страницу сканера.
+        </p>
+        <div className="mt-6 flex justify-center gap-3">
+          <Link to="/scanner" className="btn btn-primary">Открыть сканер</Link>
+          <button onClick={signOut} className="btn btn-secondary">Выйти</button>
+        </div>
+      </div>
+    );
   }
 
   if (!staff) {
@@ -96,6 +125,15 @@ export function AdminLayout() {
       links: [
         { to: "/admin/orders", label: "Заказы", show: true },
         { to: "/admin/leads", label: "Заявки", show: true, badge: newLeads },
+      ],
+    },
+    {
+      title: "Вход на концерт",
+      links: [
+        { to: "/admin/entries", label: "Проходы", show: true },
+        { to: "/admin/invites", label: "Пригласительные", show: staff.canInvites },
+        { to: "/admin/scanners", label: "Тикеторы и входы", show: staff.canScanners },
+        { to: "/admin/entry-log", label: "Журнал входа", show: true },
       ],
     },
     {

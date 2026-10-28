@@ -19,6 +19,11 @@ export const SUPPORT = {
 
 export type TicketView = {
   code: string;
+  /** sale — купленный, invite — пригласительный (без цены). */
+  kind: "sale" | "invite";
+  /** valid — действует, used — по нему уже прошли, void — аннулирован. */
+  status: "valid" | "used" | "void";
+  usedAt: string | null;
   index: number;
   count: number;
   category: string;
@@ -85,6 +90,9 @@ function expand(o: Row, locale?: string): TicketView[] {
   }
   return units.map(({ item, code }, i) => ({
     code,
+    kind: "sale" as const,
+    status: "valid" as const,
+    usedAt: null,
     index: i + 1,
     count: units.length,
     category: item.category_name,
@@ -113,13 +121,69 @@ function expand(o: Row, locale?: string): TicketView[] {
 export async function ticketByCode(db: SupabaseClient, raw: string, locale?: string): Promise<TicketView | null> {
   const code = raw.trim().toUpperCase();
   if (!/^[0-9A-F]{12}(-\d{1,3})?$/.test(code)) return null;
+  // Состояние на входе (прошёл / аннулирован) ведёт общий список билетов.
+  const { data: state } = await db.from("tickets").select("kind, status, used_at").eq("code", code).maybeSingle();
+  if (state?.kind === "invite") return inviteByCode(db, code, locale);
   const base = code.slice(0, 12);
   const { data: item } = await db.from("order_items").select("order_id").eq("ticket_code", base).maybeSingle();
   if (!item) return null;
   const { data: order } = await db.from("orders").select(SELECT).eq("id", item.order_id).single();
   const ticket = order ? expand(order as unknown as Row, locale).find((t) => t.code === code) : undefined;
   if (!ticket) return null;
-  return { ...ticket, buyer: { ...ticket.buyer, email: maskEmail(ticket.buyer.email), phone: maskPhone(ticket.buyer.phone) } };
+  return {
+    ...ticket,
+    status: (state?.status as TicketView["status"]) ?? "valid",
+    usedAt: state?.used_at ?? null,
+    buyer: { ...ticket.buyer, email: maskEmail(ticket.buyer.email), phone: maskPhone(ticket.buyer.phone) },
+  };
+}
+
+/** Пригласительный: без цены и заказа, имя гостя по желанию. */
+async function inviteByCode(db: SupabaseClient, code: string, locale?: string): Promise<TicketView | null> {
+  const { data } = await db
+    .from("tickets")
+    .select(`code, status, used_at, holder_name, holder_phone, created_at,
+      event:events ( slug, starts_at, doors_open_at, age_limit, poster_url,
+        venue:venues ( name, city, address, timezone ),
+        translations:event_translations ( locale, title ) )`)
+    .eq("code", code)
+    .eq("kind", "invite")
+    .maybeSingle();
+  const t = data as unknown as {
+    code: string; status: TicketView["status"]; used_at: string | null; holder_name: string | null;
+    holder_phone: string; created_at: string; event: Row["event"];
+  } | null;
+  if (!t?.event) return null;
+  const e = t.event;
+  const lang = locale ?? "ru";
+  const title = e.translations.find((x) => x.locale === lang)?.title ?? e.translations.find((x) => x.locale === "ru")?.title ?? e.translations[0]?.title ?? e.slug;
+  return {
+    code: t.code,
+    kind: "invite",
+    status: t.status,
+    usedAt: t.used_at,
+    index: 1,
+    count: 1,
+    category: lang === "en" ? "Invitation" : lang === "kz" ? "Шақыру билеті" : "Пригласительный",
+    seat: null,
+    price: 0,
+    currency: "KZT",
+    orderNumber: 0,
+    purchasedAt: t.created_at,
+    buyer: { name: t.holder_name ?? "", email: "", phone: maskPhone(t.holder_phone) },
+    event: {
+      title,
+      startsAt: e.starts_at,
+      doorsOpenAt: e.doors_open_at,
+      timezone: e.venue?.timezone ?? "Asia/Almaty",
+      ageLimit: e.age_limit,
+      posterUrl: e.poster_url,
+      venue: e.venue?.name ?? null,
+      city: e.venue?.city ?? null,
+      address: e.venue?.address ?? null,
+      slug: e.slug,
+    },
+  };
 }
 
 const maskEmail = (e: string) => e.replace(/^(.{2})[^@]*(@.*)$/, (_m, a, b) => `${a}***${b}`);

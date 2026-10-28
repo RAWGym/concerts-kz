@@ -129,8 +129,14 @@ export const local = {
     const { data: items } = await db.from("order_items").select("id, category_id, quantity, ticket_code").eq("order_id", orderId);
     for (const item of items ?? []) {
       if (!item.ticket_code) {
-        const code = crypto.randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase();
-        await db.from("order_items").update({ ticket_code: code }).eq("id", item.id);
+        // База сама переносит билет в общий список для сканера. Если код
+        // случайно совпал с уже выданным, запись отклоняется: берём другой.
+        for (let attempt = 0; attempt < 5; attempt++) {
+          const code = crypto.randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase();
+          const { error } = await db.from("order_items").update({ ticket_code: code }).eq("id", item.id).is("ticket_code", null);
+          if (!error) break;
+          console.error("ticket code retry", item.id, error.message);
+        }
       }
       const { data: cat } = await db
         .from("ticket_categories")

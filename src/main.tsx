@@ -74,7 +74,17 @@ const router = createBrowserRouter([
       { path: "stats", element: admin(() => import("@/admin/stats")) },
       { path: "settings", element: admin(() => import("@/admin/settings")) },
       { path: "audit", element: admin(() => import("@/admin/audit")) },
+      { path: "entries", element: admin(() => import("@/admin/entries")) },
+      { path: "invites", element: admin(() => import("@/admin/invites")) },
+      { path: "scanners", element: admin(() => import("@/admin/scanners")) },
+      { path: "entry-log", element: admin(() => import("@/admin/entry-log")) },
     ],
+  },
+  {
+    // Сканер билетов для тикеторов (его же открывает Android-приложение).
+    path: "/scanner",
+    element: lazyComponent(() => import("@/scanner/app")),
+    errorElement: <RouteError />,
   },
   {
     path: "/:locale",

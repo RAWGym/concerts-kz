@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 
 import { db, slugify } from "./db";
+import { useStaff } from "./layout";
 import { Card, Field, Notice, PageTitle, Spinner, inputCls } from "./ui";
+import { VenueGates } from "./venue-gates";
 
 type Venue = { id?: string; slug: string; name: string; city: string; address: string; timezone: string; map_url: string; capacity: string };
 
@@ -14,6 +16,7 @@ const zones = [
 const blank: Venue = { slug: "", name: "", city: "", address: "", timezone: "Asia/Almaty", map_url: "", capacity: "" };
 
 export default function Venues() {
+  const me = useStaff();
   const [list, setList] = useState<Venue[] | null>(null);
   const [edit, setEdit] = useState<Venue | null>(null);
   const [msg, setMsg] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
@@ -70,6 +73,12 @@ export default function Venues() {
           </Field>
           <Field label="Ссылка на карту"><input className={inputCls} value={edit.map_url} placeholder="https://2gis.kz/…" onChange={(e) => set("map_url", e.target.value)} /></Field>
           <Field label="Вместимость"><input type="number" className={inputCls} value={edit.capacity} onChange={(e) => set("capacity", e.target.value)} /></Field>
+          {edit.id && (me.role === "admin" || me.role === "editor" || me.canScanners) && (
+            <div className="border-t border-line pt-4 sm:col-span-2">
+              <p className="mb-2 text-sm font-medium text-fg">Входы для сканера билетов</p>
+              <VenueGates venueId={edit.id} />
+            </div>
+          )}
           <div className="flex gap-3 sm:col-span-2">
             <button className="btn btn-primary" onClick={save}>Сохранить</button>
             <button className="btn btn-secondary" onClick={() => setEdit(null)}>Отмена</button>
