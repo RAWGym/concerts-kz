@@ -10,6 +10,7 @@ import { claimMyOrders } from "@/lib/tickets/provider";
 
 import { demoOrders } from "./demo";
 import type { AccountOrder, AccountTicket, AccountUser } from "./types";
+import { displayPrice } from "@/lib/tickets/seats";
 
 /**
  * Данные кабинета покупателя.
@@ -90,6 +91,8 @@ export function ticketsFromOrders(orders: AccountOrder[]): AccountTicket[] {
   for (const order of orders) {
     if (order.status !== "paid" || !order.event) continue;
     for (const item of order.items) {
+      // У мест за столом показываем цену всего стола, а не долю места.
+      const price = displayPrice(item, order.items);
       for (let n = 0; n < item.quantity; n++) {
         const base = item.ticketCode ?? `${order.number}-${item.id.slice(0, 6)}`;
         out.push({
@@ -97,7 +100,7 @@ export function ticketsFromOrders(orders: AccountOrder[]): AccountTicket[] {
           code: item.quantity > 1 ? `${base}-${n + 1}` : base,
           categoryName: item.categoryName,
           seatLabel: item.seatLabel,
-          price: item.unitPrice,
+          price,
           currency: order.currency,
           orderId: order.id,
           orderNumber: order.number,

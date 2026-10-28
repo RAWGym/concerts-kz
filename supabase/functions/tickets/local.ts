@@ -36,6 +36,21 @@ function seatsOf(label: string): string[] {
   return Array.from({ length: SEATS }, (_, i) => `table-${m[1]}-${i + 1}`);
 }
 
+/**
+ * Столы продаются целиком: цена тарифа — за стол, «макс. в заказе» — число столов,
+ * отмеченные места — гости (билет на каждого). Стол, где занято хоть одно место,
+ * другим недоступен. База держит то же правило (миграция table_seats_guard).
+ */
+const TABLES_SOLD_WHOLE = true;
+const tableOf = (label: string) => label.match(seatRe)?.[1] ?? null;
+
+/** Делит цену стола на билеты гостей без потери копеек: остаток — на первый билет. */
+function splitPrice(price: number, n: number): number[] {
+  const cents = Math.round(price * 100);
+  const each = Math.floor(cents / n);
+  return Array.from({ length: n }, (_, i) => (i === 0 ? cents - each * (n - 1) : each) / 100);
+}
+
 /** Тариф со столами схемы Motor Club: код vip-table или «стол» в названии. */
 function isTableCategory(cat: CategoryRow) {
   if (cat.code === "vip-table") return true;
@@ -114,13 +129,16 @@ export const local = {
       .eq("is_active", true);
     const held = await heldItems(db, draft.eventId);
     const taken = new Set(held.flatMap((h) => (h.seat_label ? seatsOf(h.seat_label) : [])));
+    const takenTables = new Set(held.map((h) => (h.seat_label ? tableOf(h.seat_label) : null)).filter(Boolean));
 
     const items: Reservation["items"] = [];
     for (const want of draft.items ?? []) {
       const cat = (cats as CategoryRow[] | null)?.find((c) => c.code === want.categoryId);
       const qty = Math.floor(Number(want.quantity));
       if (!cat || !(Number(cat.price) > 0)) throw new SaleError("category_unavailable");
-      if (!(qty > 0) || qty > cat.max_per_order) throw new SaleError("bad_quantity");
+      const wholeTables = TABLES_SOLD_WHOLE && atMotor && isTableCategory(cat);
+      // У столов лимит считаем в столах (ниже), у остальных — в билетах.
+      if (!(qty > 0) || (!wholeTables && qty > cat.max_per_order)) throw new SaleError("bad_quantity");
       if (cat.available !== null) {
         const pending = pendingQty(held, cat.code);
         if (cat.available - pending < qty) throw new SaleError("not_enough_tickets");
@@ -143,8 +161,25 @@ export const local = {
             mine.add(one);
           }
         }
-        for (const seat of seats) {
-          items.push({ category_id: cat.code, category_name: name, quantity: 1, unit_price: Number(cat.price), seat_label: seat });
+        if (wholeTables) {
+          // Стол целиком: занятый кем-то стол не продаём, цену стола делим между билетами гостей.
+          const byTable = new Map<string, string[]>();
+          for (const seat of seats) {
+            const t = tableOf(seat)!;
+            if (takenTables.has(t)) throw new SaleError("seat_taken");
+            byTable.set(t, [...(byTable.get(t) ?? []), seat]);
+          }
+          if (byTable.size > cat.max_per_order) throw new SaleError("bad_quantity");
+          for (const list of byTable.values()) {
+            const prices = splitPrice(Number(cat.price), list.length);
+            list.forEach((seat, i) =>
+              items.push({ category_id: cat.code, category_name: name, quantity: 1, unit_price: prices[i], seat_label: seat }),
+            );
+          }
+        } else {
+          for (const seat of seats) {
+            items.push({ category_id: cat.code, category_name: name, quantity: 1, unit_price: Number(cat.price), seat_label: seat });
+          }
         }
       } else {
         // Каждый билет отдельной строкой: у каждого свой код и свой QR.

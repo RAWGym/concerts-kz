@@ -88,6 +88,13 @@ function expand(o: Row, locale?: string): TicketView[] {
     if (item.quantity === 1) units.push({ item, code: item.ticket_code });
     else for (let n = 1; n <= item.quantity; n++) units.push({ item, code: `${item.ticket_code}-${n}` });
   }
+  // У гостей за столом показываем цену всего стола (стол продаётся целиком).
+  const tableKey = (seat: string | null) => seat?.match(/^table-(\d+)/)?.[1] ?? null;
+  const priceOf = (item: Row["items"][number]) => {
+    const t = tableKey(item.seat_label);
+    if (!t) return Number(item.unit_price);
+    return o.items.filter((x) => tableKey(x.seat_label) === t).reduce((s, x) => s + Number(x.unit_price) * x.quantity, 0);
+  };
   return units.map(({ item, code }, i) => ({
     code,
     kind: "sale" as const,
@@ -97,7 +104,7 @@ function expand(o: Row, locale?: string): TicketView[] {
     count: units.length,
     category: item.category_name,
     seat: item.seat_label,
-    price: Number(item.unit_price),
+    price: priceOf(item),
     currency: o.currency,
     orderNumber: o.number,
     purchasedAt: o.updated_at ?? o.created_at,

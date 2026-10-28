@@ -43,3 +43,63 @@ export function expandTaken(labels: string[]): Set<string> {
   }
   return out;
 }
+
+/**
+ * Столы Motor Club продаются целиком: цена тарифа — за стол, а отмеченные
+ * места показывают, сколько придёт гостей. Стол, где занято хоть одно место,
+ * другим покупателям недоступен.
+ */
+export const TABLES_SOLD_WHOLE = true;
+
+/** Номер стола по метке места или null. */
+export const tableOf = (label: string | null | undefined) => parseSeat(label)?.table ?? null;
+
+/**
+ * Цена билета для показа: у мест за столом — цена всего стола (сумма долей
+ * всех мест этого стола в заказе), у остальных — своя цена.
+ */
+export function displayPrice<T extends { seatLabel: string | null; unitPrice: number; quantity: number }>(
+  item: T,
+  orderItems: T[],
+): number {
+  const table = TABLES_SOLD_WHOLE ? tableOf(item.seatLabel) : null;
+  if (table === null) return item.unitPrice;
+  return orderItems.filter((i) => tableOf(i.seatLabel) === table).reduce((s, i) => s + i.unitPrice * i.quantity, 0);
+}
+
+/** Строки заказа для показа: места одного стола сливаются в одну строку «Стол 7 · места 1, 2, 3». */
+export function groupItemsByTable<T extends { id: string; categoryName: string; seatLabel: string | null; unitPrice: number; quantity: number }>(
+  items: T[],
+): { id: string; categoryName: string; table: number | null; seats: number[]; label: string | null; quantity: number; amount: number }[] {
+  const out: ReturnType<typeof groupItemsByTable<T>> = [];
+  const byTable = new Map<number, (typeof out)[number]>();
+  for (const it of items) {
+    const p = TABLES_SOLD_WHOLE ? parseSeat(it.seatLabel) : null;
+    if (!p) {
+      out.push({ id: it.id, categoryName: it.categoryName, table: null, seats: [], label: it.seatLabel, quantity: it.quantity, amount: it.unitPrice * it.quantity });
+      continue;
+    }
+    let row = byTable.get(p.table);
+    if (!row) {
+      row = { id: it.id, categoryName: it.categoryName, table: p.table, seats: [], label: it.seatLabel, quantity: 0, amount: 0 };
+      byTable.set(p.table, row);
+      out.push(row);
+    }
+    if (p.seat) row.seats.push(p.seat);
+    row.quantity += it.quantity;
+    row.amount += it.unitPrice * it.quantity;
+  }
+  for (const r of out) r.seats.sort((a, b) => a - b);
+  return out;
+}
+
+/** «Стол 7 · места 1, 2, 3» / «Table 7 · seats 1, 2, 3». */
+export function tableSeatsName(table: number, seats: number[], locale: string = "ru"): string {
+  const w = {
+    ru: ["Стол", "место", "места"],
+    kz: ["Үстел", "орын", "орындар"],
+    en: ["Table", "seat", "seats"],
+  }[locale in { ru: 1, kz: 1, en: 1 } ? (locale as "ru" | "kz" | "en") : "ru"];
+  if (!seats.length) return `${w[0]} ${table}`;
+  return `${w[0]} ${table} · ${seats.length === 1 ? w[1] : w[2]} ${seats.join(", ")}`;
+}
