@@ -946,3 +946,8 @@ revoke execute on function public.event_title(uuid) from authenticated;
 
 -- Сервер админки (admin-users) пишет в журнал действия с аккаунтами тикеторов.
 grant execute on function public.log_scanner_account(uuid, text) to service_role;
+
+-- Триггерные функции вызываются только триггерами.
+revoke execute on function public.log_ticket_admin() from authenticated;
+revoke execute on function public.order_items_sync_tickets() from authenticated;
+revoke execute on function public.orders_sync_tickets() from authenticated;
