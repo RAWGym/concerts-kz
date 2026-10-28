@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { Locale } from "@/i18n/config";
+import { SEATS_PER_SIDE, TABLE_SEATS, seatId } from "@/lib/tickets/seats";
 
 /**
  * Схема зала Motor Club (Алматы): два этажа.
  * 1 этаж: танцпол у сцены, бары по периметру.
  * 2 этаж: VIP-столы 1–15 и VIP-зона без рассадки вокруг проёма над танцполом.
+ * У каждого стола 6 мест: 1–3 вдоль верхней стороны, 4–6 вдоль нижней.
  *
  * Коды тарифов совпадают с кодами в таблице ticket_categories
  * (админка → событие → тарифы): dancefloor, vip-table, vip-floor2.
@@ -33,6 +35,15 @@ export const MOTOR_TEXT: Record<
     void: string;
     table: string;
     hint: string;
+    seat: string;
+    free: string;
+    taken: string;
+    yours: string;
+    wholeTable: string;
+    clearTable: string;
+    close: string;
+    seatsOf: string;
+    soldOut: string;
     zones: Record<MotorZone, { name: string; note: string }>;
   }
 > = {
@@ -47,9 +58,18 @@ export const MOTOR_TEXT: Record<
     void: "Проём над танцполом",
     table: "Стол",
     hint: "Нажмите на зону или стол на схеме",
+    seat: "Место",
+    free: "Свободно",
+    taken: "Занято",
+    yours: "Ваше",
+    wholeTable: "Все свободные места",
+    clearTable: "Снять выбор",
+    close: "Закрыть",
+    seatsOf: "свободно {free} из 6",
+    soldOut: "все места заняты",
     zones: {
       dancefloor: { name: "Танцпол", note: "1 этаж, у сцены, без мест" },
-      "vip-table": { name: "VIP со столом", note: "2 этаж, стол на компанию" },
+      "vip-table": { name: "VIP со столом", note: "2 этаж, место за столом, 6 мест у стола" },
       "vip-floor2": { name: "VIP доступ на 2 этаж", note: "2 этаж, без рассадки" },
     },
   },
@@ -64,9 +84,18 @@ export const MOTOR_TEXT: Record<
     void: "Танцпол үстіндегі ойық",
     table: "Үстел",
     hint: "Сызбадағы аймақты немесе үстелді басыңыз",
+    seat: "Орын",
+    free: "Бос",
+    taken: "Бос емес",
+    yours: "Сіздікі",
+    wholeTable: "Барлық бос орындар",
+    clearTable: "Таңдауды алу",
+    close: "Жабу",
+    seatsOf: "6 орынның {free} бос",
+    soldOut: "барлық орын бос емес",
     zones: {
       dancefloor: { name: "Танцпол", note: "1 қабат, сахна жанында, орынсыз" },
-      "vip-table": { name: "Үстелі бар VIP", note: "2 қабат, компанияға үстел" },
+      "vip-table": { name: "Үстелі бар VIP", note: "2 қабат, үстел басындағы орын, үстелде 6 орын" },
       "vip-floor2": { name: "2 қабатқа VIP кіру", note: "2 қабат, орынсыз" },
     },
   },
@@ -81,9 +110,18 @@ export const MOTOR_TEXT: Record<
     void: "Open to the dance floor",
     table: "Table",
     hint: "Tap a zone or a table on the map",
+    seat: "Seat",
+    free: "Free",
+    taken: "Taken",
+    yours: "Yours",
+    wholeTable: "All free seats",
+    clearTable: "Clear",
+    close: "Close",
+    seatsOf: "{free} of 6 free",
+    soldOut: "fully booked",
     zones: {
       dancefloor: { name: "Dance floor", note: "Floor 1, by the stage, standing" },
-      "vip-table": { name: "VIP table", note: "Floor 2, a table for your group" },
+      "vip-table": { name: "VIP table", note: "Floor 2, a seat at a table, 6 seats per table" },
       "vip-floor2": { name: "VIP access to floor 2", note: "Floor 2, standing" },
     },
   },
@@ -102,25 +140,51 @@ export const MOTOR_TABLE_COUNT = TABLES.length;
 const TW = 62;
 const TH = 36;
 
+/** Места стола по порядку: 1–3 — верхняя сторона, 4–6 — нижняя. */
+const tableSeats = (n: number) => Array.from({ length: TABLE_SEATS }, (_, i) => seatId(n, i + 1));
+
+/** Центр места на схеме: три места над столом и три под ним. */
+function seatDot(t: { x: number; y: number }, i: number) {
+  const col = i % SEATS_PER_SIDE;
+  const top = i < SEATS_PER_SIDE;
+  return { cx: t.x + (TW * (col + 0.5)) / SEATS_PER_SIDE, cy: top ? t.y - 5 : t.y + TH + 5 };
+}
+
 export function MotorScheme({
   locale,
   active,
-  tables,
-  takenTables = [],
+  seats,
+  taken,
+  openTable,
   onZone,
   onTable,
+  onSeat,
+  onWholeTable,
+  onCloseTable,
 }: {
   locale: Locale;
   /** Зоны, которые сейчас в заказе (подсвечиваются). */
   active: MotorZone[];
-  /** Выбранные столы. */
-  tables: number[];
-  takenTables?: number[];
+  /** Выбранные места, например "table-7-3". */
+  seats: string[];
+  /** Занятые места (проданы или в чужой брони). */
+  taken: Set<string>;
+  /** Стол, места которого сейчас выбирают. */
+  openTable: number | null;
   onZone: (zone: MotorZone) => void;
   onTable: (n: number) => void;
+  onSeat: (seat: string) => void;
+  /** Выбрать все свободные места стола или снять выбор со стола. */
+  onWholeTable: (n: number) => void;
+  onCloseTable: () => void;
 }) {
   const tx = MOTOR_TEXT[locale];
   const [floor, setFloor] = useState<1 | 2>(1);
+  const chosen = new Set(seats);
+  // Стол открыли из списка выбранных мест — показываем 2 этаж.
+  useEffect(() => {
+    if (openTable !== null) setFloor(2);
+  }, [openTable]);
 
   const zoneProps = (zone: MotorZone) => {
     const on = active.includes(zone);
@@ -222,47 +286,70 @@ export function MotorScheme({
               <text x="500" y="211" textAnchor="middle" transform="rotate(-90 500 211)" className="pointer-events-none fill-white/50 text-[10px] uppercase" letterSpacing="1">{tx.stairs}</text>
             </g>
 
-            {/* столы */}
+            {/* столы и места: точка над/под столом — одно место */}
             {TABLES.map((t) => {
-              const taken = takenTables.includes(t.n);
-              const on = tables.includes(t.n);
+              const ids = tableSeats(t.n);
+              const free = ids.filter((id) => !taken.has(id)).length;
+              const mine = ids.filter((id) => chosen.has(id)).length;
+              const full = free === 0;
+              const open = openTable === t.n;
               const color = ZONE_COLOR["vip-table"];
               return (
                 <g
                   key={t.n}
                   role="button"
-                  tabIndex={taken ? -1 : 0}
-                  aria-label={`${tx.table} ${t.n}`}
-                  aria-pressed={on}
-                  aria-disabled={taken}
-                  onClick={() => !taken && onTable(t.n)}
+                  tabIndex={full ? -1 : 0}
+                  aria-label={`${tx.table} ${t.n}: ${full ? tx.soldOut : tx.seatsOf.replace("{free}", String(free))}`}
+                  aria-pressed={open}
+                  aria-disabled={full}
+                  onClick={() => !full && onTable(t.n)}
                   onKeyDown={(e) => {
-                    if (!taken && (e.key === "Enter" || e.key === " ")) {
+                    if (!full && (e.key === "Enter" || e.key === " ")) {
                       e.preventDefault();
                       onTable(t.n);
                     }
                   }}
-                  className={`${taken ? "cursor-not-allowed" : "cursor-pointer"} outline-none [&:focus-visible>rect]:stroke-white`}
+                  className={`${full ? "cursor-not-allowed" : "cursor-pointer"} outline-none [&:focus-visible>rect]:stroke-white`}
                 >
+                  {/* невидимая зона нажатия чуть больше стола вместе с местами */}
+                  <rect x={t.x - 4} y={t.y - 11} width={TW + 8} height={TH + 22} fill="transparent" />
                   <rect
                     x={t.x}
                     y={t.y}
                     width={TW}
                     height={TH}
                     rx="7"
-                    fill={taken ? "#262626" : on ? color : "#1a1a1a"}
-                    stroke={taken ? "#3a3a3a" : color}
-                    strokeWidth={on ? 2 : 1.5}
-                    className="transition-[fill] duration-200"
+                    fill={full ? "#262626" : mine ? color : "#1a1a1a"}
+                    fillOpacity={mine && mine < TABLE_SEATS ? 0.55 : 1}
+                    stroke={full ? "#3a3a3a" : open ? "#ffffff" : color}
+                    strokeWidth={open ? 2.5 : mine ? 2 : 1.5}
+                    className="transition-[fill,stroke] duration-200"
                   />
                   <text
                     x={t.x + TW / 2}
                     y={t.y + TH / 2 + 5}
                     textAnchor="middle"
-                    className={`pointer-events-none font-display text-[13px] font-bold ${taken ? "fill-white/30" : on ? "fill-[#1a1a1a]" : "fill-white"}`}
+                    className={`pointer-events-none font-display text-[13px] font-bold ${full ? "fill-white/30" : mine ? "fill-[#1a1a1a]" : "fill-white"}`}
                   >
                     {t.n}
                   </text>
+                  {ids.map((id, i) => {
+                    const d = seatDot(t, i);
+                    const isTaken = taken.has(id);
+                    const isMine = chosen.has(id);
+                    return (
+                      <circle
+                        key={id}
+                        cx={d.cx}
+                        cy={d.cy}
+                        r="3.6"
+                        className="pointer-events-none transition-[fill] duration-200"
+                        fill={isMine ? color : isTaken ? "#3a3a3a" : "#121212"}
+                        stroke={isTaken && !isMine ? "#3a3a3a" : color}
+                        strokeWidth="1.2"
+                      />
+                    );
+                  })}
                 </g>
               );
             })}
@@ -280,6 +367,18 @@ export function MotorScheme({
         </text>
       </svg>
 
+      {floor === 2 && openTable !== null && (
+        <TablePicker
+          n={openTable}
+          locale={locale}
+          chosen={chosen}
+          taken={taken}
+          onSeat={onSeat}
+          onWhole={() => onWholeTable(openTable)}
+          onClose={onCloseTable}
+        />
+      )}
+
       <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-fg-muted">
         {MOTOR_ZONES.map((z) => (
           <li key={z} className="flex items-center gap-2">
@@ -288,6 +387,106 @@ export function MotorScheme({
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+/** Крупный выбор мест одного стола: удобно попадать пальцем на телефоне. */
+function TablePicker({
+  n,
+  locale,
+  chosen,
+  taken,
+  onSeat,
+  onWhole,
+  onClose,
+}: {
+  n: number;
+  locale: Locale;
+  chosen: Set<string>;
+  taken: Set<string>;
+  onSeat: (seat: string) => void;
+  onWhole: () => void;
+  onClose: () => void;
+}) {
+  const tx = MOTOR_TEXT[locale];
+  const ids = tableSeats(n);
+  const free = ids.filter((id) => !taken.has(id)).length;
+  const mine = ids.filter((id) => chosen.has(id)).length;
+  const color = ZONE_COLOR["vip-table"];
+
+  const seatButton = (id: string, i: number) => {
+    const isTaken = taken.has(id);
+    const isMine = chosen.has(id);
+    return (
+      <button
+        key={id}
+        type="button"
+        disabled={isTaken}
+        aria-pressed={isMine}
+        aria-label={`${tx.table} ${n}, ${tx.seat.toLowerCase()} ${i + 1}: ${isTaken ? tx.taken : isMine ? tx.yours : tx.free}`}
+        onClick={() => onSeat(id)}
+        className={`flex h-11 w-11 items-center justify-center rounded-full font-display text-sm font-bold transition-[background-color,color,transform] duration-150 active:scale-95 sm:h-12 sm:w-12 ${
+          isTaken
+            ? "cursor-not-allowed bg-[#262626] text-white/25 line-through"
+            : isMine
+              ? "bg-[#f5b83d] text-[#1a1a1a] shadow-[0_0_0_3px_rgba(245,184,61,0.25)]"
+              : "border-[1.5px] border-[#f5b83d] text-fg hover:bg-[#f5b83d]/15"
+        }`}
+      >
+        {i + 1}
+      </button>
+    );
+  };
+
+  return (
+    <div className="mt-4 rounded-2xl border border-line bg-surface p-4 sm:p-5" role="group" aria-label={`${tx.table} ${n}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="font-display text-base font-bold uppercase tracking-[0.04em] text-fg">
+            {tx.table} {n}
+          </p>
+          <p className="mt-0.5 text-xs text-fg-subtle">{tx.seatsOf.replace("{free}", String(free))}</p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label={tx.close}
+          className="flex h-9 w-9 items-center justify-center rounded-full text-lg text-fg-muted transition-colors hover:bg-ink-deep hover:text-fg"
+        >
+          ×
+        </button>
+      </div>
+
+      <div className="mx-auto mt-4 flex max-w-[260px] flex-col items-center gap-2.5">
+        <div className="flex w-full justify-around">{ids.slice(0, SEATS_PER_SIDE).map((id, i) => seatButton(id, i))}</div>
+        <div
+          className="flex h-14 w-full items-center justify-center rounded-xl font-display text-lg font-bold"
+          style={{ background: mine ? `${color}33` : "#1a1a1a", border: `1.5px solid ${color}`, color }}
+        >
+          {n}
+        </div>
+        <div className="flex w-full justify-around">
+          {ids.slice(SEATS_PER_SIDE).map((id, i) => seatButton(id, i + SEATS_PER_SIDE))}
+        </div>
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <ul className="flex gap-4 text-[11px] text-fg-muted">
+          <li className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full border border-[#f5b83d]" />{tx.free}</li>
+          <li className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-[#f5b83d]" />{tx.yours}</li>
+          <li className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-[#3a3a3a]" />{tx.taken}</li>
+        </ul>
+        {free > 0 && (
+          <button
+            type="button"
+            onClick={onWhole}
+            className="rounded-full border border-line-strong px-3.5 py-1.5 text-xs font-semibold text-fg transition-colors hover:border-[#f5b83d] hover:text-[#f5b83d]"
+          >
+            {mine > 0 ? tx.clearTable : tx.wholeTable}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

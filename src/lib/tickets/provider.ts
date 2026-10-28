@@ -43,8 +43,32 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: { "content-type": "application/json", ...init?.headers },
   });
-  if (!res.ok) throw new Error(`tickets api ${res.status}`);
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new TicketApiError(res.status, body.error ?? "internal");
+  }
   return (await res.json()) as T;
+}
+
+/** Ошибка сервера продаж с кодом: seat_taken, not_enough_tickets и т.п. */
+export class TicketApiError extends Error {
+  constructor(
+    readonly status: number,
+    readonly code: string,
+  ) {
+    super(`tickets api ${status}: ${code}`);
+  }
+}
+
+/** Занятые места за столами (оплаченные и в брони). При сбое — пустой список. */
+export async function getTakenSeats(eventId: string): Promise<string[]> {
+  if (!apiUrl) return [];
+  try {
+    const { taken } = await call<{ taken: string[] }>(`/tickets/seats?event=${encodeURIComponent(eventId)}`);
+    return Array.isArray(taken) ? taken : [];
+  } catch {
+    return [];
+  }
 }
 
 const apiProvider: TicketProvider = {

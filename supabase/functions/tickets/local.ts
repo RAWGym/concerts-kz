@@ -23,6 +23,34 @@ type CategoryRow = {
 
 export class SaleError extends Error {}
 
+/** Места за столами: "table-7-3" — стол 7, место 3; "table-7" — стол целиком (старые заказы). */
+const TABLES = 15;
+const SEATS = 6;
+const seatRe = /^table-(\d{1,2})(?:-([1-6]))?$/;
+
+/** Все места, которые занимает метка: место — само себя, стол целиком — все 6 мест. */
+function seatsOf(label: string): string[] {
+  const m = label.match(seatRe);
+  if (!m) return [label];
+  if (m[2]) return [label];
+  return Array.from({ length: SEATS }, (_, i) => `table-${m[1]}-${i + 1}`);
+}
+
+/** Тариф со столами схемы Motor Club: код vip-table или «стол» в названии. */
+function isTableCategory(cat: CategoryRow) {
+  if (cat.code === "vip-table") return true;
+  const names = Object.values(cat.name ?? {}).join(" ").toLowerCase();
+  return /стол|table|үстел/.test(names);
+}
+
+/** Занятые места события (оплаченные и живые брони) — без данных покупателей. */
+export async function takenSeats(db: SupabaseClient, eventId: string) {
+  const held = await heldItems(db, eventId);
+  const out = new Set<string>();
+  for (const h of held) if (h.seat_label) for (const s of seatsOf(h.seat_label)) out.add(s);
+  return [...out].sort();
+}
+
 /** Занятые места и брони: оплаченные заказы + неоплаченные, у которых бронь ещё жива. */
 async function heldItems(db: SupabaseClient, eventId: string) {
   const now = new Date().toISOString();
@@ -71,10 +99,13 @@ export const local = {
   async reserve(db: SupabaseClient, draft: Draft): Promise<Reservation> {
     const { data: event } = await db
       .from("events")
-      .select("id, currency, status, is_sold_out")
+      .select("id, currency, status, is_sold_out, venue:venues(name)")
       .eq("id", draft.eventId)
       .single();
     if (!event || event.status !== "published" || event.is_sold_out) throw new SaleError("event_not_on_sale");
+    // Схема со столами есть только у Motor Club (как и на сайте).
+    const venue = (event as unknown as { venue: { name: string } | { name: string }[] | null }).venue;
+    const atMotor = /motor/i.test((Array.isArray(venue) ? venue[0]?.name : venue?.name) ?? "");
 
     const { data: cats } = await db
       .from("ticket_categories")
@@ -82,7 +113,7 @@ export const local = {
       .eq("event_id", draft.eventId)
       .eq("is_active", true);
     const held = await heldItems(db, draft.eventId);
-    const takenSeats = new Set(held.map((h) => h.seat_label).filter(Boolean));
+    const taken = new Set(held.flatMap((h) => (h.seat_label ? seatsOf(h.seat_label) : [])));
 
     const items: Reservation["items"] = [];
     for (const want of draft.items ?? []) {
@@ -95,11 +126,24 @@ export const local = {
         if (cat.available - pending < qty) throw new SaleError("not_enough_tickets");
       }
       const name = cat.name.ru || cat.code;
-      const seats = (want.seats ?? []).map(String).filter((s) => /^[a-z0-9-]{1,32}$/.test(s));
+      const seats = Array.isArray(want.seats) ? want.seats.map(String) : [];
+      // На столы продаём только конкретные места: иначе места продались бы сверх схемы.
+      if (atMotor && isTableCategory(cat) && !seats.length) throw new SaleError("bad_seats");
       if (seats.length) {
-        if (seats.length !== qty) throw new SaleError("bad_seats");
+        if (seats.length !== qty || new Set(seats).size !== seats.length) throw new SaleError("bad_seats");
         for (const seat of seats) {
-          if (takenSeats.has(seat)) throw new SaleError("seat_taken");
+          const m = seat.match(seatRe);
+          if (!m || Number(m[1]) < 1 || Number(m[1]) > TABLES) throw new SaleError("bad_seats");
+        }
+        // Место в заказе не должно пересекаться ни с проданными, ни с другими местами этого же заказа.
+        const mine = new Set<string>();
+        for (const seat of seats) {
+          for (const one of seatsOf(seat)) {
+            if (taken.has(one) || mine.has(one)) throw new SaleError("seat_taken");
+            mine.add(one);
+          }
+        }
+        for (const seat of seats) {
           items.push({ category_id: cat.code, category_name: name, quantity: 1, unit_price: Number(cat.price), seat_label: seat });
         }
       } else {

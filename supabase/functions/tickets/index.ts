@@ -4,7 +4,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 import { acquiring } from "./acquiring.ts";
 import { emailTickets, qrGif, ticketByCode } from "./delivery.ts";
-import { local, SaleError } from "./local.ts";
+import { local, SaleError, takenSeats } from "./local.ts";
 import { ticketon } from "./ticketon.ts";
 
 const cors = {
@@ -175,6 +175,13 @@ Deno.serve(async (req) => {
       return json({ sent: await emailTickets(supabase, order.id) });
     }
 
+    // Занятые места за столами для схемы зала: только метки мест, без данных покупателей.
+    if (req.method === "GET" && route === "/tickets/seats") {
+      const eventId = url.searchParams.get("event") ?? "";
+      if (!/^[0-9a-f-]{36}$/.test(eventId)) return json({ error: "event_required" }, 400);
+      return json({ taken: await takenSeats(db(), eventId) });
+    }
+
     // Ticketon необязателен: без него продаём по тарифам из админки.
     if (!acquiring.isConfigured()) {
       return json({ error: "sales_not_configured" }, 503);
@@ -225,9 +232,16 @@ Deno.serve(async (req) => {
         .select("id, status, total, service_fee, currency, expires_at")
         .single();
       if (error) throw error;
-      await supabase.from("order_items").insert(
+      // База ещё раз проверяет места под блокировкой: два одновременных заказа
+      // не получат одно место. Если не вышло, заказ без билетов не оставляем.
+      const { error: itemsError } = await supabase.from("order_items").insert(
         reservation.items.map((item) => ({ ...item, order_id: order.id })),
       );
+      if (itemsError) {
+        await supabase.from("orders").delete().eq("id", order.id);
+        if (/seat_taken/.test(itemsError.message)) throw new SaleError("seat_taken");
+        throw itemsError;
+      }
       return json({
         id: order.id,
         status: order.status,
@@ -293,7 +307,7 @@ Deno.serve(async (req) => {
         const { data: items } = await supabase.from("order_items").select("category_id, quantity, seat_label").eq("order_id", order.id);
         const byCat = new Map<string, { categoryId: string; quantity: number; seats: string[] }>();
         for (const it of items ?? []) {
-          const row = byCat.get(it.category_id) ?? { categoryId: it.category_id, quantity: 0, seats: [] };
+          const row = byCat.get(it.category_id) ?? { categoryId: it.category_id, quantity: 0, seats: [] as string[] };
           row.quantity += it.quantity;
           if (it.seat_label) row.seats.push(it.seat_label);
           byCat.set(it.category_id, row);
@@ -309,7 +323,7 @@ Deno.serve(async (req) => {
           .in("status", ["pending", "failed", "expired"])
           .select("*")
           .single();
-        if (!reopened) return json({ error: "order_not_payable" }, 409);
+        if (!reopened) return json({ error: "seat_taken" }, 409);
         Object.assign(order, reopened);
       }
       return json({ paymentUrl: await startPayment(supabase, order, returnUrl) });

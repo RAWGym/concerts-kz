@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 
 import { PaymentBadges } from "@/components/payment-badges";
 import { Section } from "@/components/ui/section";
@@ -12,10 +12,10 @@ import { getEventBySlug } from "@/lib/data/queries";
 import type { EventDetail } from "@/lib/data/types";
 import { formatEventDateTime, formatMoney } from "@/lib/format";
 import { useSession } from "@/lib/account/session";
-import { isSalesEnabled, tickets } from "@/lib/tickets/provider";
+import { getTakenSeats, isSalesEnabled, TicketApiError, tickets } from "@/lib/tickets/provider";
+import { parseSeat, seatId, TABLE_SEATS } from "@/lib/tickets/seats";
 import type { TicketCategory } from "@/lib/tickets/types";
 import {
-  MOTOR_TABLE_COUNT,
   MOTOR_TEXT,
   MOTOR_ZONES,
   MotorScheme,
@@ -46,7 +46,8 @@ function motorCategories(event: EventDetail, categories: TicketCategory[], local
   return MOTOR_ZONES.map((zone) => {
     const fromDb = categories.find((c) => zoneOf(c) === zone);
     if (fromDb && fromDb.price > 0) {
-      return { ...fromDb, id: zone, serverId: fromDb.id, maxPerOrder: zone === "vip-table" ? MOTOR_TABLE_COUNT : fromDb.maxPerOrder };
+      // Для столов maxPerOrder из админки — сколько мест можно взять в один заказ.
+      return { ...fromDb, id: zone, serverId: fromDb.id };
     }
     return {
       id: zone,
@@ -54,7 +55,7 @@ function motorCategories(event: EventDetail, categories: TicketCategory[], local
       price: 0,
       currency: event.currency,
       available: event.isSoldOut ? 0 : null,
-      maxPerOrder: zone === "vip-table" ? MOTOR_TABLE_COUNT : 10,
+      maxPerOrder: zone === "vip-table" ? TABLE_SEATS : 10,
       priceTbd: true,
     };
   });
@@ -62,8 +63,8 @@ function motorCategories(event: EventDetail, categories: TicketCategory[], local
 
 /**
  * Оформление заказа: категории билетов → контакты → оплата.
- * Повторяет шаги из дизайн-проекта (страница 08). Схема зала с выбором
- * конкретных мест появится, когда будет доступен API Ticketon.
+ * Повторяет шаги из дизайн-проекта (страница 08). Для Motor Club —
+ * схема зала: на 2 этаже покупатель выбирает конкретные места за столами.
  */
 
 export async function generateMetadata({
@@ -110,23 +111,62 @@ function Checkout({
       : `${localePath(locale, "/login")}?next=${encodeURIComponent(window.location.pathname)}`;
 
   const [rawQty, setQty] = useState<Record<string, number>>({});
-  const [tables, setTables] = useState<number[]>([]);
-  // Для стола количество = число выбранных столов на схеме.
+  // Места за столами: "table-7-3". Количество билетов на столы = число мест.
+  const [seats, setSeats] = useState<string[]>([]);
+  const [openTable, setOpenTable] = useState<number | null>(null);
+  const [taken, setTaken] = useState<Set<string>>(() => new Set());
   const qty = useMemo(
-    () => (motor ? { ...rawQty, "vip-table": tables.length } : rawQty),
-    [motor, rawQty, tables],
+    () => (motor ? { ...rawQty, "vip-table": seats.length } : rawQty),
+    [motor, rawQty, seats],
   );
   const tbd = categories.some((cat) => cat.priceTbd && (qty[cat.id] ?? 0) > 0);
+  const [accepted, setAccepted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const tableCat = motor ? categories.find((cat) => cat.id === "vip-table") : undefined;
+  const seatLimit = tableCat ? Math.max(1, tableCat.maxPerOrder) : TABLE_SEATS;
+
+  // Занятые места: при открытии страницы и при выборе стола (вдруг кто-то успел купить).
+  const refreshTaken = useCallback(async () => {
+    if (!motor) return new Set<string>();
+    const fresh = new Set(await getTakenSeats(event.id));
+    setTaken(fresh);
+    setSeats((prev) => prev.filter((s) => !fresh.has(s)));
+    return fresh;
+  }, [motor, event.id]);
+  useEffect(() => {
+    void refreshTaken();
+  }, [refreshTaken]);
 
   function pickZone(zone: MotorZone) {
     if (zone === "vip-table") return;
     setQty((prev) => ({ ...prev, [zone]: Math.max(1, prev[zone] ?? 0) }));
   }
-  function toggleTable(n: number) {
-    setTables((prev) => (prev.includes(n) ? prev.filter((x) => x !== n) : [...prev, n].sort((a, b) => a - b)));
+  function openSeats(n: number) {
+    setOpenTable((cur) => (cur === n ? null : n));
+    void refreshTaken();
   }
-  const [accepted, setAccepted] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  function toggleSeat(id: string) {
+    if (taken.has(id)) return;
+    if (!seats.includes(id) && seats.length >= seatLimit) {
+      setError(c.seatLimit.replace("{n}", String(seatLimit)));
+      return;
+    }
+    setError(null);
+    setSeats((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : sortSeats([...prev, id])));
+  }
+  function toggleWholeTable(n: number) {
+    const ids = Array.from({ length: TABLE_SEATS }, (_, i) => seatId(n, i + 1));
+    if (ids.some((id) => seats.includes(id))) {
+      setSeats((prev) => prev.filter((x) => !ids.includes(x)));
+      return;
+    }
+    const free = ids.filter((id) => !taken.has(id));
+    const room = seatLimit - seats.length;
+    if (room < free.length) setError(c.seatLimit.replace("{n}", String(seatLimit)));
+    else setError(null);
+    if (room > 0) setSeats((prev) => sortSeats([...prev, ...free.slice(0, room)]));
+  }
   const [busy, setBusy] = useState(false);
 
   const count = Object.values(qty).reduce((a, b) => a + b, 0);
@@ -172,7 +212,7 @@ function Checkout({
           .map(([categoryId, quantity]) => ({
             categoryId: categories.find((cat) => cat.id === categoryId)?.serverId ?? categoryId,
             quantity,
-            ...(categoryId === "vip-table" && motor ? { seats: tables.map((n) => `table-${n}`) } : {}),
+            ...(categoryId === "vip-table" && motor ? { seats } : {}),
           })),
         buyer,
         locale,
@@ -181,8 +221,16 @@ function Checkout({
       const returnUrl = `${window.location.origin}${localePath(locale, `/orders/${order.id}`)}`;
       const { paymentUrl } = await tickets.startPayment(order.id, returnUrl);
       window.location.assign(paymentUrl);
-    } catch {
-      setError(c.error);
+    } catch (err) {
+      // Место успели купить, пока покупатель заполнял форму: обновляем схему.
+      if (err instanceof TicketApiError && err.code === "seat_taken") {
+        await refreshTaken();
+        setError(c.seatTaken);
+      } else if (err instanceof TicketApiError && err.code === "bad_quantity") {
+        setError(c.seatLimit.replace("{n}", String(seatLimit)));
+      } else {
+        setError(c.error);
+      }
       setBusy(false);
     }
   }
@@ -235,9 +283,14 @@ function Checkout({
                 <MotorScheme
                   locale={locale}
                   active={MOTOR_ZONES.filter((z) => (qty[z] ?? 0) > 0)}
-                  tables={tables}
+                  seats={seats}
+                  taken={taken}
+                  openTable={openTable}
                   onZone={pickZone}
-                  onTable={toggleTable}
+                  onTable={openSeats}
+                  onSeat={toggleSeat}
+                  onWholeTable={toggleWholeTable}
+                  onCloseTable={() => setOpenTable(null)}
                 />
               </div>
             )}
@@ -265,26 +318,28 @@ function Checkout({
                           ? c.soldOut
                           : cat.priceTbd
                             ? c.priceTbd
-                            : `${formatMoney(cat.price, cat.currency, locale)} ${cat.id === "vip-table" && motor ? c.perTable : c.perTicket}`}
+                            : `${formatMoney(cat.price, cat.currency, locale)} ${cat.id === "vip-table" && motor ? c.perSeat : c.perTicket}`}
                       </p>
                       {motor && cat.id === "vip-table" && (
                         <div className="mt-3 flex flex-wrap gap-2">
-                          {tables.length === 0 ? (
-                            <span className="text-xs text-fg-subtle">{c.pickTable}</span>
+                          {seats.length === 0 ? (
+                            <span className="text-xs text-fg-subtle">{c.pickSeats}</span>
                           ) : (
-                            tables.map((t) => (
+                            groupByTable(seats).map(([table, nums]) => (
                               <button
-                                key={t}
+                                key={table}
                                 type="button"
-                                onClick={() => toggleTable(t)}
+                                onClick={() => setOpenTable(table)}
                                 className="rounded-full bg-[#f5b83d] px-3 py-1 text-xs font-semibold text-[#1a1a1a] transition-opacity hover:opacity-80"
-                                aria-label={`${MOTOR_TEXT[locale].table} ${t}: ${c.remove}`}
                               >
-                                {MOTOR_TEXT[locale].table} {t} ×
+                                {MOTOR_TEXT[locale].table} {table} · {MOTOR_TEXT[locale].seat.toLowerCase()} {nums.join(", ")}
                               </button>
                             ))
                           )}
                         </div>
+                      )}
+                      {motor && cat.id === "vip-table" && seats.length > 0 && (
+                        <p className="mt-2 text-xs text-fg-muted">{c.guests.replace("{n}", String(seats.length))}</p>
                       )}
                     </div>
                     {motor && cat.id === "vip-table" ? (
@@ -441,4 +496,24 @@ function Summary({
       ))}
     </ul>
   );
+}
+
+/** Места по порядку: стол, потом номер места. */
+function sortSeats(list: string[]) {
+  const key = (id: string) => {
+    const p = parseSeat(id);
+    return p ? p.table * 10 + (p.seat ?? 0) : 0;
+  };
+  return [...list].sort((a, b) => key(a) - key(b));
+}
+
+/** "table-7-1", "table-7-2" → [[7, [1, 2]]] для подписи «Стол 7 · места 1, 2». */
+function groupByTable(list: string[]): [number, number[]][] {
+  const map = new Map<number, number[]>();
+  for (const id of list) {
+    const p = parseSeat(id);
+    if (!p?.seat) continue;
+    map.set(p.table, [...(map.get(p.table) ?? []), p.seat]);
+  }
+  return [...map.entries()];
 }
