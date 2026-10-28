@@ -138,15 +138,9 @@ export const local = {
           console.error("ticket code retry", item.id, error.message);
         }
       }
-      const { data: cat } = await db
-        .from("ticket_categories")
-        .select("id, available")
-        .eq("event_id", order?.event_id)
-        .eq("code", item.category_id)
-        .single();
-      if (cat && cat.available !== null) {
-        await db.from("ticket_categories").update({ available: Math.max(0, cat.available - item.quantity) }).eq("id", cat.id);
-      }
+      // Списание одной операцией в базе: две оплаты подряд не потеряют билет из остатка.
+      const { error: stockErr } = await db.rpc("consume_category", { p_event: order?.event_id, p_code: item.category_id, p_qty: item.quantity });
+      if (stockErr) console.error("consume_category", item.id, stockErr.message);
     }
   },
 };

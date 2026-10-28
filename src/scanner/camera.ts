@@ -27,6 +27,7 @@ export function useQrScanner(onCode: (code: string) => void, paused: boolean, fa
   const [state, setState] = useState<CameraState>("starting");
   const [torch, setTorch] = useState<boolean | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const aliveRef = useRef(true);
   const pausedRef = useRef(paused);
   const cbRef = useRef(onCode);
   pausedRef.current = paused;
@@ -40,6 +41,12 @@ export function useQrScanner(onCode: (code: string) => void, paused: boolean, fa
         audio: false,
         video: { facingMode: { ideal: facing === "front" ? "user" : "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } },
       });
+      // Пока камера включалась, экран закрыли или свернули: сразу отпускаем.
+      if (!aliveRef.current || document.visibilityState === "hidden") {
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
+      streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = stream;
       const v = videoRef.current;
       if (v) {
@@ -58,10 +65,23 @@ export function useQrScanner(onCode: (code: string) => void, paused: boolean, fa
   }, [facing]);
 
   useEffect(() => {
-    start();
-    return () => {
+    const stopStream = () => {
       streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
+    };
+    aliveRef.current = true;
+    start();
+    // Свернули приложение: камеру отпускаем. Вернулись: включаем заново
+    // (iPhone и Android всё равно гасят камеру в фоне, и кадр «замерзает»).
+    const vis = () => {
+      if (document.visibilityState === "hidden") stopStream();
+      else if (!streamRef.current || streamRef.current.getVideoTracks().every((t) => t.readyState === "ended")) start();
+    };
+    document.addEventListener("visibilitychange", vis);
+    return () => {
+      aliveRef.current = false;
+      document.removeEventListener("visibilitychange", vis);
+      stopStream();
     };
   }, [start]);
 
