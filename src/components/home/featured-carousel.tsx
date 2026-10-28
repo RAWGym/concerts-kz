@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { unavailableLabel } from "@/lib/data/sales-label";
 import Link from "next/link";
 import { useRef, useState } from "react";
 
@@ -118,7 +119,7 @@ function Slide({ event, locale, t, wide }: { event: EventCard; locale: Locale; t
             {buy ? (
               <Link href={buy} className="btn btn-primary">{t.actions.buyTicket}</Link>
             ) : (
-              <span className="btn btn-secondary cursor-default opacity-70">{t.actions.soldOut}</span>
+              <span className="btn btn-secondary cursor-default opacity-70">{unavailableLabel(event, t)}</span>
             )}
             {wide ? (
               <Link href={details} className="btn btn-secondary">{t.actions.details}</Link>

@@ -25,6 +25,8 @@ export type RawEvent = {
   badge: EventBadge;
   is_featured: boolean;
   is_sold_out: boolean;
+  /** Галочка «Продажи закрыты» (миграция sales_closed). */
+  sales_closed?: boolean;
   ticketon_url: string | null;
   /** Перенос или отмена (после миграции positions_events_upgrades). */
   change_kind?: "postponed" | "cancelled" | null;
@@ -129,6 +131,8 @@ export type EventCard = {
   currency: CurrencyCode;
   badge: EventBadge;
   isSoldOut: boolean;
+  /** Продажи закрыты вручную: билеты не продаются, но и не распроданы. */
+  salesClosed: boolean;
   isFeatured: boolean;
   posterUrl: string | null;
   coverUrl: string | null;

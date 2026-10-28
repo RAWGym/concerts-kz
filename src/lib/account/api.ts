@@ -26,7 +26,7 @@ const ORDER_FIELDS = `
   items:order_items ( id, category_name, seat_label, quantity, unit_price, ticket_code ),
   event:events (
     id, slug, category, starts_at, age_limit, poster_url, cover_url,
-    price_from, currency, badge, is_featured, is_sold_out, ticketon_url,
+    price_from, currency, badge, is_featured, is_sold_out, sales_closed, ticketon_url,
     change_kind, original_starts_at,
     venue:venues ( name, city, city_i18n, address, timezone ),
     translations:event_translations ( locale, title, subtitle, description )

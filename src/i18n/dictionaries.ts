@@ -26,6 +26,8 @@ const ru = {
     postponed: "Перенесено",
     soldOut: "Продано",
     soon: "Скоро в продаже",
+    salesClosed: "Продажи закрыты",
+    salesSoon: "Продажи скоро откроются",
   },
   home: {
     heroOverline: "Главное событие сезона",
@@ -294,6 +296,8 @@ const kz: Dictionary = {
     postponed: "Ауыстырылды",
     soldOut: "Сатылды",
     soon: "Жақында сатылымда",
+    salesClosed: "Сату жабық",
+    salesSoon: "Сату жақында ашылады",
   },
   home: {
     heroOverline: "Маусымның басты оқиғасы",
@@ -559,6 +563,8 @@ const en: Dictionary = {
     postponed: "Postponed",
     soldOut: "Sold out",
     soon: "On sale soon",
+    salesClosed: "Sales closed",
+    salesSoon: "Sales open soon",
   },
   home: {
     heroOverline: "The main event of the season",
