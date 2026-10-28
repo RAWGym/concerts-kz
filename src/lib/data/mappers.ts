@@ -66,12 +66,15 @@ export function toEventCard(raw: RawEvent, locale: Locale): EventCard {
     priceFrom: raw.price_from,
     currency: raw.currency,
     badge: raw.badge,
-    isSoldOut: raw.is_sold_out,
+    // Отменённый концерт не продаётся: везде ведёт себя как распроданный.
+    isSoldOut: raw.is_sold_out || raw.change_kind === "cancelled",
     isFeatured: raw.is_featured,
     posterUrl: raw.poster_url,
     coverUrl: raw.cover_url,
     ageLimit: raw.age_limit,
     ticketonUrl: raw.ticketon_url,
+    changeKind: raw.change_kind ?? null,
+    originalStartsAt: raw.original_starts_at ?? null,
   };
 }
 

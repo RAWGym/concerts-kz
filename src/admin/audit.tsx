@@ -28,7 +28,7 @@ export default function Audit() {
     db().from("audit_log").select("*").order("at", { ascending: false }).limit(300).then(({ data }) => setRows((data ?? []) as Entry[]));
   }, []);
 
-  if (me.role !== "admin") return <Notice>Раздел доступен только администратору.</Notice>;
+  if (!me.can("audit")) return <Notice>Раздел доступен сотрудникам с правом «Журнал изменений».</Notice>;
 
   return (
     <>

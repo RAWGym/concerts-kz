@@ -26,6 +26,9 @@ export type RawEvent = {
   is_featured: boolean;
   is_sold_out: boolean;
   ticketon_url: string | null;
+  /** Перенос или отмена (после миграции positions_events_upgrades). */
+  change_kind?: "postponed" | "cancelled" | null;
+  original_starts_at?: string | null;
   venue: {
     name: string;
     city: string;
@@ -132,6 +135,10 @@ export type EventCard = {
   ageLimit: number | null;
   /** Ссылка на Freedom Ticketon. null — продажи ещё не открыты. */
   ticketonUrl: string | null;
+  /** Событие перенесено или отменено. */
+  changeKind: "postponed" | "cancelled" | null;
+  /** Дата до переноса. */
+  originalStartsAt: string | null;
 };
 
 export type EventDetail = EventCard & {

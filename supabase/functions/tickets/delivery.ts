@@ -1,21 +1,15 @@
 // Выдача билетов: данные для страницы билета, QR-картинка и письмо покупателю.
-//
-// Секреты функции для писем:
-//   RESEND_API_KEY=<ключ Resend>
-//   MAIL_FROM=Concerts Prod <tickets@concerts.kz>
+// Письма уходят через mail.ts (Resend) и пишутся в журнал писем.
 // Без ключа письмо не отправляется, билеты всё равно есть в личном кабинете.
 
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import qrcode from "npm:qrcode-generator@1.4.4";
 
-const SITE = () => (Deno.env.get("SITE_URL") ?? "https://concerts.kz").replace(/\/$/, "");
-const FN = () => (Deno.env.get("PUBLIC_FUNCTION_URL") ?? "").replace(/\/$/, "");
+import { esc, money, sendMail, SITE, SUPPORT, when } from "./mail.ts";
 
-export const SUPPORT = {
-  phone: "+7 700 258 62 49",
-  email: "barsuklighter@gmail.com",
-  organizer: "ИП «BSL Production», БИН 870613300367",
-};
+export { SUPPORT };
+
+const FN = () => (Deno.env.get("PUBLIC_FUNCTION_URL") ?? "").replace(/\/$/, "");
 
 export type TicketView = {
   code: string;
@@ -51,6 +45,8 @@ type Row = {
   id: string;
   number: number;
   status: string;
+  kind?: string;
+  event_id?: string;
   locale: string;
   buyer_name: string;
   buyer_email: string;
@@ -70,7 +66,7 @@ type Row = {
   } | null;
 };
 
-const SELECT = `id, number, status, locale, buyer_name, buyer_email, buyer_phone, updated_at, created_at, currency,
+const SELECT = `id, number, status, kind, event_id, locale, buyer_name, buyer_email, buyer_phone, updated_at, created_at, currency,
   items:order_items ( id, category_name, seat_label, quantity, unit_price, ticket_code ),
   event:events ( slug, starts_at, doors_open_at, age_limit, poster_url,
     venue:venues ( name, city, address, timezone ),
@@ -129,7 +125,7 @@ export async function ticketByCode(db: SupabaseClient, raw: string, locale?: str
   const code = raw.trim().toUpperCase();
   if (!/^[0-9A-F]{12}(-\d{1,3})?$/.test(code)) return null;
   // Состояние на входе (прошёл / аннулирован) ведёт общий список билетов.
-  const { data: state } = await db.from("tickets").select("kind, status, used_at").eq("code", code).maybeSingle();
+  const { data: state } = await db.from("tickets").select("kind, status, used_at, paid_total").eq("code", code).maybeSingle();
   if (state?.kind === "invite") return inviteByCode(db, code, locale);
   const base = code.slice(0, 12);
   const { data: item } = await db.from("order_items").select("order_id").eq("ticket_code", base).maybeSingle();
@@ -140,6 +136,7 @@ export async function ticketByCode(db: SupabaseClient, raw: string, locale?: str
   return {
     ...ticket,
     status: (state?.status as TicketView["status"]) ?? "valid",
+    price: state?.paid_total != null ? Number(state.paid_total) : ticket.price,
     usedAt: state?.used_at ?? null,
     buyer: { ...ticket.buyer, email: maskEmail(ticket.buyer.email), phone: maskPhone(ticket.buyer.phone) },
   };
@@ -210,13 +207,6 @@ export function qrGif(code: string) {
 
 /* ---------------- письмо ---------------- */
 
-const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
-
-const money = (n: number, cur: string) => `${new Intl.NumberFormat("ru-RU").format(n)} ${cur === "KZT" ? "₸" : cur}`;
-
-const when = (iso: string, tz: string, opts: Intl.DateTimeFormatOptions) =>
-  new Intl.DateTimeFormat("ru-RU", { timeZone: tz, ...opts }).format(new Date(iso));
-
 export const seatText = (seat: string | null) => {
   if (!seat) return "Без места";
   const m = seat.match(/^table-(\d+)(?:-(\d))?$/);
@@ -270,39 +260,50 @@ function ticketHtml(t: TicketView) {
 </table>`;
 }
 
-/** Отправляет билеты оплаченного заказа на почту покупателя (один раз, сразу после оплаты). */
+/** Состояние билетов заказа: аннулированные (возврат, апгрейд) не отправляем, цена с учётом доплат. */
+async function ticketStates(db: SupabaseClient, orderId: string) {
+  const { data, error } = await db.from("tickets").select("code, status, price, paid_total, void_reason").eq("order_id", orderId);
+  if (error) return null;
+  return new Map((data ?? []).map((t) => [t.code as string, t as { status: string; price: number; paid_total: number | null }]));
+}
+
+/**
+ * Отправляет действующие билеты оплаченного заказа на почту покупателя.
+ * Для заказа-доплаты это письмо с новым (улучшенным) билетом.
+ */
 export async function emailTickets(db: SupabaseClient, orderId: string) {
-  const key = Deno.env.get("RESEND_API_KEY");
-  if (!key) {
-    console.warn("tickets email skipped: RESEND_API_KEY is not set");
-    return false;
-  }
   const { data } = await db.from("orders").select(SELECT).eq("id", orderId).single();
   if (!data) return false;
   const order = data as unknown as Row;
-  const list = expand(order, "ru");
+  const states = await ticketStates(db, order.id);
+  const upgrade = order.kind === "upgrade";
+  let list = expand(order, "ru");
+  if (states) {
+    list = list
+      .filter((t) => (states.get(t.code)?.status ?? "valid") !== "void")
+      .map((t) => {
+        const st = states.get(t.code);
+        return st ? { ...t, status: st.status as TicketView["status"], price: Number(st.paid_total ?? t.price) } : t;
+      });
+    list = list.map((t, i) => ({ ...t, index: i + 1, count: list.length }));
+  }
   if (!list.length) return false;
 
   const e = list[0].event;
+  const intro = upgrade
+    ? `Здравствуйте, ${esc(order.buyer_name)}! Билет улучшен до «${esc(list[0].category)}». Новый билет ниже, старый QR-код больше не действует. Билеты также сохранены в <a href="${SITE()}/ru/account" style="color:#ff4d4d">личном кабинете</a>.`
+    : `Здравствуйте, ${esc(order.buyer_name)}! Спасибо за покупку. Ваши билеты ниже, они также сохранены в <a href="${SITE()}/ru/account" style="color:#ff4d4d">личном кабинете</a>.`;
   const html = `<!doctype html><html><body style="margin:0;padding:24px 12px;background:#ececec;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">
-<p style="max-width:560px;margin:0 auto 18px;font-size:15px;color:#222">Здравствуйте, ${esc(order.buyer_name)}! Спасибо за покупку. Ваши билеты ниже, они также сохранены в <a href="${SITE()}/ru/account" style="color:#ff4d4d">личном кабинете</a>.</p>
+<p style="max-width:560px;margin:0 auto 18px;font-size:15px;color:#222">${intro}</p>
 ${list.map(ticketHtml).join("")}
 </body></html>`;
 
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
-    body: JSON.stringify({
-      from: Deno.env.get("MAIL_FROM") || "Concerts Prod <tickets@concerts.kz>",
-      to: [order.buyer_email],
-      reply_to: SUPPORT.email,
-      subject: `Билеты: ${e.title}, заказ № ${order.number}`,
-      html,
-    }),
+  return sendMail(db, {
+    to: order.buyer_email,
+    subject: upgrade ? `Билет улучшен: ${e.title}, заказ № ${order.number}` : `Билеты: ${e.title}, заказ № ${order.number}`,
+    html,
+    kind: upgrade ? "upgrade" : "tickets",
+    orderId: order.id,
+    eventId: order.event_id ?? null,
   });
-  if (!res.ok) {
-    console.error("tickets email failed", res.status, (await res.text()).slice(0, 500));
-    return false;
-  }
-  return true;
 }

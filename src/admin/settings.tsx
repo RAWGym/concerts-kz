@@ -28,7 +28,7 @@ export default function Settings() {
     });
   }, []);
 
-  if (me.role !== "admin") return <Notice>Раздел доступен только администратору.</Notice>;
+  if (!me.can("settings")) return <Notice>Раздел доступен сотрудникам с правом «Настройки сайта».</Notice>;
   if (!contacts) return <Spinner />;
 
   async function save() {

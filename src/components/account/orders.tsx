@@ -58,6 +58,7 @@ export function OrdersTab({
               <div className="min-w-0 flex-1">
                 <p className="font-display text-[10px] font-semibold uppercase tracking-[0.14em] text-fg-subtle">
                   {fill(t.orderNo, { n: order.number })}
+                  {order.kind === "upgrade" && <span className="text-orange"> · {t.upgrade.orderKind}</span>}
                 </p>
                 <p className="mt-1 truncate font-display text-sm font-semibold uppercase text-fg sm:text-base">
                   {e?.title ?? "–"}
@@ -148,6 +149,16 @@ export function OrdersTab({
                         </Link>
                       )}
                       {order.status === "paid" && <ResendButton orderId={order.id} t={t} />}
+                      {order.refundedAmount > 0 && (
+                        <p className="mt-3 text-center text-xs text-fg-muted">
+                          {t.status.refunded}: {formatMoney(order.refundedAmount, order.currency, locale)}
+                        </p>
+                      )}
+                      {order.kind === "sale" && order.status === "paid" && e?.changeKind && (
+                        <Link href={localePath(locale, `/refund?order=${order.id}`)} className="mt-3 block text-center text-xs text-coral underline-offset-4 hover:underline">
+                          {t.change.refund}
+                        </Link>
+                      )}
                     </div>
                   </div>
                 </motion.div>

@@ -52,7 +52,7 @@ function splitPrice(price: number, n: number): number[] {
 }
 
 /** Тариф со столами схемы Motor Club: код vip-table или «стол» в названии. */
-function isTableCategory(cat: CategoryRow) {
+export function isTableCategory(cat: CategoryRow) {
   if (cat.code === "vip-table") return true;
   const names = Object.values(cat.name ?? {}).join(" ").toLowerCase();
   return /стол|table|үстел/.test(names);
@@ -67,7 +67,7 @@ export async function takenSeats(db: SupabaseClient, eventId: string) {
 }
 
 /** Занятые места и брони: оплаченные заказы + неоплаченные, у которых бронь ещё жива. */
-async function heldItems(db: SupabaseClient, eventId: string) {
+export async function heldItems(db: SupabaseClient, eventId: string) {
   const now = new Date().toISOString();
   const { data, error } = await db
     .from("order_items")
@@ -84,12 +84,12 @@ async function heldItems(db: SupabaseClient, eventId: string) {
 }
 
 /** Неоплаченные брони по тарифу (оплаченные уже списаны из available). */
-const pendingQty = (held: Awaited<ReturnType<typeof heldItems>>, code: string) =>
+export const pendingQty = (held: Awaited<ReturnType<typeof heldItems>>, code: string) =>
   held.filter((h) => !h.paid && h.category_id === code).reduce((s, h) => s + h.quantity, 0);
 
 export const local = {
   async getCategories(db: SupabaseClient, eventId: string, locale = "ru") {
-    const { data: event } = await db.from("events").select("currency, is_sold_out").eq("id", eventId).single();
+    const { data: event } = await db.from("events").select("currency, is_sold_out, change_kind").eq("id", eventId).single();
     const { data, error } = await db
       .from("ticket_categories")
       .select("code, name, price, available, max_per_order")
@@ -105,7 +105,7 @@ export const local = {
         name: c.name[locale] || c.name.ru || c.code,
         price: Number(c.price),
         currency: event?.currency ?? "KZT",
-        available: event?.is_sold_out ? 0 : c.available === null ? null : Math.max(0, c.available - pending),
+        available: event?.is_sold_out || event?.change_kind === "cancelled" ? 0 : c.available === null ? null : Math.max(0, c.available - pending),
         maxPerOrder: c.max_per_order,
       };
     });
@@ -114,10 +114,12 @@ export const local = {
   async reserve(db: SupabaseClient, draft: Draft): Promise<Reservation> {
     const { data: event } = await db
       .from("events")
-      .select("id, currency, status, is_sold_out, venue:venues(name)")
+      .select("id, currency, status, is_sold_out, change_kind, deleted_at, venue:venues(name)")
       .eq("id", draft.eventId)
       .single();
-    if (!event || event.status !== "published" || event.is_sold_out) throw new SaleError("event_not_on_sale");
+    if (!event || event.status !== "published" || event.is_sold_out || event.change_kind === "cancelled" || event.deleted_at) {
+      throw new SaleError("event_not_on_sale");
+    }
     // Схема со столами есть только у Motor Club (как и на сайте).
     const venue = (event as unknown as { venue: { name: string } | { name: string }[] | null }).venue;
     const atMotor = /motor/i.test((Array.isArray(venue) ? venue[0]?.name : venue?.name) ?? "");

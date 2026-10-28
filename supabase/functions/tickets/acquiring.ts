@@ -135,6 +135,33 @@ export const acquiring = {
     return { succeeded: st === "success", failed: st === "error" || st === "failed" || st === "revoked", raw };
   },
 
+  /**
+   * Возврат денег на карту (revoke.php). Частичный возврат: сумма меньше платежа,
+   * можно несколько раз, пока не вернётся весь платёж.
+   */
+  async refund(paymentId: string, amount: number): Promise<{ ok: boolean; raw: string; error: string }> {
+    const params: Record<string, string> = {
+      pg_merchant_id: env("ACQUIRING_MERCHANT_ID").replace(/\D/g, ""),
+      pg_payment_id: paymentId,
+      pg_refund_amount: amount.toFixed(2),
+      pg_salt: salt(),
+    };
+    params.pg_sig = await sign("revoke.php", params);
+    const res = await fetch(`${apiUrl()}/revoke.php`, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams(params),
+    });
+    const xml = await res.text();
+    const ok = xmlValue(xml, "pg_status") === "ok";
+    if (!ok) console.error("freedompay revoke", res.status, xml.slice(0, 1000));
+    return {
+      ok,
+      raw: xml.slice(0, 2000),
+      error: ok ? "" : `${xmlValue(xml, "pg_error_code")} ${xmlValue(xml, "pg_error_description")}`.trim() || `HTTP ${res.status}`,
+    };
+  },
+
   /** Проверяет подпись уведомления (result_url). null: подпись неверна. */
   async handleCallback(req: Request): Promise<CallbackResult | null> {
     const type = req.headers.get("content-type") ?? "";

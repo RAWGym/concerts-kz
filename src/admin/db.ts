@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { createBrowserSupabase } from "@/lib/supabase/client";
+import { apiUrl } from "@/lib/tickets/provider";
 
 /**
  * Клиент админки с сессией сотрудника. Без строгих типов таблиц:
@@ -12,22 +13,6 @@ export function db(): SupabaseClient {
 }
 
 export type Role = "admin" | "editor" | "sales" | "scanner";
-
-export const roleLabels: Record<Role, string> = {
-  admin: "Администратор",
-  editor: "Редактор",
-  sales: "Продажи",
-  scanner: "Тикетор",
-};
-
-export const roleHints: Record<Role, string> = {
-  admin: "Всё, включая сотрудников и роли",
-  editor: "События, площадки и контент сайта",
-  sales: "Заказы и заявки, без правки контента",
-  scanner: "Только сканер билетов на назначенных концертах",
-};
-
-export const canEdit = (role: Role | null) => role === "admin" || role === "editor";
 
 /** Вызов функции admin-users (создание и удаление сотрудников). */
 export async function staffApi<T = { ok: true }>(body: Record<string, unknown>): Promise<T> {
@@ -44,6 +29,29 @@ export async function staffApi<T = { ok: true }>(body: Record<string, unknown>):
     throw new Error(message);
   }
   return data as T;
+}
+
+/** Ошибка сервера продаж с текстом для сотрудника и подсказкой (например, used_tickets). */
+export class AdminApiError extends Error {
+  constructor(message: string, readonly hint?: string) {
+    super(message);
+  }
+}
+
+/** Действия админки на сервере продаж: письма, перенос и отмена, возвраты. */
+export async function adminApi<T = Record<string, unknown>>(path: string, body: Record<string, unknown> = {}): Promise<T> {
+  const { data } = await db().auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) throw new AdminApiError("Войдите заново");
+  const res = await fetch(`${apiUrl}/admin${path}`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify(body),
+  }).catch(() => null);
+  if (!res) throw new AdminApiError("Нет связи с сервером");
+  const json = (await res.json().catch(() => ({}))) as { error?: string; hint?: string };
+  if (!res.ok) throw new AdminApiError(json.error ?? `Ошибка сервера (${res.status})`, json.hint);
+  return json as T;
 }
 
 /* ---------- даты в часовом поясе площадки ---------- */
