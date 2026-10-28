@@ -1,6 +1,20 @@
 /** Звук и вибрация результата: на шумном входе тикетор слышит и чувствует ответ. */
 
-type Native = { vibrate?: (ms: number) => void; version?: () => string; checkUpdate?: () => void; device?: () => string };
+import { getSettings } from "./settings";
+
+/** Методы Android-приложения. В старых версиях оболочки части методов нет. */
+export type Native = {
+  vibrate?: (ms: number) => void;
+  version?: () => string;
+  checkUpdate?: () => void;
+  /** JSON: { camera, notifications, install } со значениями granted | denied | prompt | unsupported. */
+  permissions?: () => string;
+  requestPermission?: (name: string) => void;
+  openSettings?: (name: string) => void;
+  showNotification?: (id: number, title: string, body: string) => void;
+  schedule?: (id: number, atMs: number, title: string, body: string) => void;
+  cancel?: (id: number) => void;
+};
 
 /** Мост Android-приложения (если страница открыта в нём). */
 export const native = (): Native | undefined => (window as unknown as { ConcertsApp?: Native }).ConcertsApp;
@@ -18,7 +32,7 @@ export function unlockAudio() {
 }
 
 function tone(freq: number, start: number, dur: number, type: OscillatorType = "sine", gain = 0.25) {
-  if (!ctx) return;
+  if (!ctx || !getSettings().sound) return;
   const o = ctx.createOscillator();
   const g = ctx.createGain();
   o.type = type;
@@ -33,12 +47,19 @@ function tone(freq: number, start: number, dur: number, type: OscillatorType = "
 }
 
 function vibrate(pattern: number | number[]) {
+  if (!getSettings().vibration) return;
   const n = native();
   if (n?.vibrate) {
     n.vibrate(Array.isArray(pattern) ? pattern.reduce((a, b) => a + b, 0) : pattern);
     return;
   }
   navigator.vibrate?.(pattern);
+}
+
+/** Короткий сигнал для проверки звука и вибрации из настроек. */
+export function testFeedback() {
+  unlockAudio();
+  feedback("ok");
 }
 
 export function feedback(kind: "ok" | "warn" | "deny") {

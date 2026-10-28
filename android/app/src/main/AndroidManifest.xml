@@ -5,6 +5,8 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Назначения на концерты и напоминания перед входом -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Обновление приложения из самого приложения -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
@@ -36,6 +38,10 @@
 
         <receiver
             android:name=".InstallReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".ReminderReceiver"
             android:exported="false" />
     </application>
 </manifest>

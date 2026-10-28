@@ -1,37 +1,41 @@
 import type { Session } from "@supabase/supabase-js";
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 
-import { createBrowserSupabase } from "@/lib/supabase/client";
-
+import { AlertsScreen, useAlerts } from "./alerts";
 import { useQrScanner } from "./camera";
+import {
+  SCANNER_DOMAIN,
+  ago,
+  deviceLabel,
+  doorsAt,
+  fmtDate,
+  fmtTime,
+  isNetworkError,
+  rpc,
+  sb,
+  seatText,
+  type EventItem,
+  type Gate,
+  type Me,
+  type Stats,
+} from "./core";
 import { feedback, native, unlockAudio } from "./feedback";
+import { History } from "./history";
+import { Onboarding, isOnboarded, onboardedKey } from "./onboarding";
+import { Profile } from "./profile";
+import { store, useSettings } from "./settings";
+import { Icon, Logo, NetBadge, TabHeader } from "./ui";
 
 /* ============================================================
-   Сканер билетов для тикеторов: /scanner.
+   Приложение тикетора: /scanner.
    Открывается в Android-приложении «Concerts Сканер» и в браузере.
    Решение «пускать или нет» принимает только база (scan_ticket),
    поэтому без связи билет не пропускается.
+
+   Экраны: вход → первая настройка (разрешения) → вкладки
+   Концерты · Сканер · История · Уведомления · Профиль.
    ============================================================ */
 
-const SCANNER_DOMAIN = "scanner.concerts.kz";
-const RPC_TIMEOUT = 9000;
-
-type Stats = { total: number; used: number; invites: number; denied: number };
-type Gate = { id: string; name: string };
-type EventItem = {
-  id: string;
-  title: string;
-  starts_at: string;
-  doors_open_at: string | null;
-  poster_url: string | null;
-  venue: string | null;
-  city: string | null;
-  timezone: string;
-  gate: Gate | null;
-  gates: Gate[];
-  stats: Stats;
-};
-type Me = { allowed: boolean; disabled?: boolean; user_id: string; name: string; role: string; events: EventItem[] };
 type Ticket = {
   id: string;
   code: string;
@@ -66,44 +70,7 @@ type ScanResult = {
   event_title?: string;
   event_starts_at?: string;
 };
-type Recent = { at: string; result: string; code: string; message: string; holder_name: string | null; category_name: string | null; kind: string | null };
 
-const sb = () => createBrowserSupabase();
-
-/** Вызов функции базы с ограничением по времени: зависший запрос не держит очередь. */
-async function rpc<T>(fn: string, args: Record<string, unknown> = {}): Promise<T> {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), RPC_TIMEOUT);
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (sb() as any).rpc(fn, args).abortSignal(ctrl.signal);
-    if (error) throw Object.assign(new Error(error.message || "network"), { code: error.code, status: (error as { status?: number }).status });
-    return data as T;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-const isNetworkError = (e: unknown) => {
-  const m = `${(e as Error)?.name ?? ""} ${(e as Error)?.message ?? ""}`;
-  return /abort|network|fetch|failed to|load failed|timeout/i.test(m) || !navigator.onLine;
-};
-
-function deviceLabel() {
-  const app = native()?.version?.();
-  const ua = navigator.userAgent.match(/Android [\d.]+; ([^;)]+)/)?.[1] ?? navigator.platform;
-  return [app ? `APK ${app}` : "Браузер", ua].filter(Boolean).join(" · ").slice(0, 120);
-}
-
-const fmtTime = (iso: string | null | undefined, tz = "Asia/Almaty") =>
-  iso ? new Intl.DateTimeFormat("ru-RU", { timeZone: tz, hour: "2-digit", minute: "2-digit" }).format(new Date(iso)) : "";
-const fmtDate = (iso: string, tz = "Asia/Almaty") =>
-  new Intl.DateTimeFormat("ru-RU", { timeZone: tz, day: "numeric", month: "long", weekday: "short" }).format(new Date(iso));
-const seatText = (s: string | null) => (s ? s.replace(/^table-(\d+)$/, "Стол $1") : null);
-const ago = (iso: string) => {
-  const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
-  return m < 1 ? "только что" : m < 60 ? `${m} мин назад` : `${Math.floor(m / 60)} ч ${m % 60} мин назад`;
-};
 
 /* ---------------- корень ---------------- */
 
@@ -111,10 +78,7 @@ export default function ScannerApp() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [me, setMe] = useState<Me | null>(null);
   const [meError, setMeError] = useState("");
-  const [event, setEvent] = useState<EventItem | null>(null);
-  const [gate, setGate] = useState<Gate | null>(null);
-  const [choosingGate, setChoosingGate] = useState<EventItem | null>(null);
-  const online = useOnline();
+  const [setupDone, setSetupDone] = useState(false);
 
   useEffect(() => {
     document.title = "Сканер билетов · Concerts";
@@ -128,10 +92,7 @@ export default function ScannerApp() {
   const loadMe = useCallback(async () => {
     setMeError("");
     try {
-      const data = await rpc<Me>("scanner_me");
-      setMe(data);
-      // Обновляем выбранный концерт свежими данными.
-      setEvent((cur) => (cur ? data.events.find((e) => e.id === cur.id) ?? null : cur));
+      setMe(await rpc<Me>("scanner_me"));
     } catch (e) {
       setMeError(isNetworkError(e) ? "Нет связи с сервером. Проверьте интернет." : (e as Error).message);
     }
@@ -146,23 +107,21 @@ export default function ScannerApp() {
     rpc("scanner_hello", { p_device: deviceLabel() }).catch(() => undefined);
   }, [session, loadMe]);
 
+  // Список концертов обновляется сам, пока приложение на экране.
+  useEffect(() => {
+    if (!session) return;
+    const t = setInterval(() => document.visibilityState === "visible" && loadMe(), 30000);
+    const vis = () => document.visibilityState === "visible" && loadMe();
+    document.addEventListener("visibilitychange", vis);
+    return () => {
+      clearInterval(t);
+      document.removeEventListener("visibilitychange", vis);
+    };
+  }, [session, loadMe]);
+
   async function signOut() {
     await sb().auth.signOut();
-    setEvent(null);
-    setGate(null);
-  }
-
-  function openEvent(e: EventItem) {
-    unlockAudio();
-    if (e.gate) {
-      setGate(e.gate);
-      setEvent(e);
-    } else if (e.gates.length) {
-      setChoosingGate(e);
-    } else {
-      setGate(null);
-      setEvent(e);
-    }
+    setMe(null);
   }
 
   let screen: ReactNode;
@@ -176,16 +135,20 @@ export default function ScannerApp() {
         onSignOut={signOut}
       />
     );
-  else if (choosingGate)
+  else if (!setupDone && !isOnboarded(me.user_id)) screen = <Onboarding uid={me.user_id} name={me.name} onDone={() => setSetupDone(true)} />;
+  else
     screen = (
-      <GatePicker
-        event={choosingGate}
-        onPick={(g) => { setGate(g); setEvent(choosingGate); setChoosingGate(null); }}
-        onBack={() => setChoosingGate(null)}
+      <Shell
+        me={me}
+        email={session.user.email ?? ""}
+        onRefresh={loadMe}
+        onSignOut={signOut}
+        onRedoSetup={() => {
+          store.set(onboardedKey(me.user_id), "0");
+          setSetupDone(false);
+        }}
       />
     );
-  else if (event) screen = <Scan event={event} gate={gate} me={me} online={online} onBack={() => { setEvent(null); loadMe(); }} />;
-  else screen = <Events me={me} onOpen={openEvent} onRefresh={loadMe} onSignOut={signOut} online={online} />;
 
   return (
     <div className="flex h-[100dvh] flex-col overflow-hidden bg-ink text-fg [padding-bottom:env(safe-area-inset-bottom)] [padding-top:env(safe-area-inset-top)] select-none">
@@ -209,11 +172,134 @@ function useOnline() {
   return on;
 }
 
-/* ---------------- общие куски ---------------- */
+/* ---------------- вкладки ---------------- */
 
-function Logo() {
-  return <img src="/logo-header.svg" alt="Concerts" className="h-auto w-[136px]" draggable={false} />;
+type Tab = "events" | "scan" | "history" | "alerts" | "profile";
+
+function Shell({ me, email, onRefresh, onSignOut, onRedoSetup }: { me: Me; email: string; onRefresh: () => Promise<void>; onSignOut: () => void; onRedoSetup: () => void }) {
+  const [tab, setTab] = useState<Tab>("events");
+  const [eventId, setEventId] = useState<string | null>(null);
+  const [gate, setGate] = useState<Gate | null>(null);
+  const [choosingGate, setChoosingGate] = useState<EventItem | null>(null);
+  const online = useOnline();
+  const alerts = useAlerts(me);
+  const event = me.events.find((e) => e.id === eventId) ?? null;
+
+  // Сняли с концерта, пока он был открыт: возвращаем к списку.
+  useEffect(() => {
+    if (eventId && !event) {
+      setEventId(null);
+      setGate(null);
+    }
+  }, [eventId, event]);
+
+  // Кнопка «назад» Android: со вкладок возвращаемся к концертам.
+  useEffect(() => {
+    history.replaceState({ tab: "events" }, "");
+  }, []);
+  useEffect(() => {
+    if (tab !== "events") history.pushState({ tab }, "");
+    const pop = () => setTab("events");
+    window.addEventListener("popstate", pop);
+    return () => window.removeEventListener("popstate", pop);
+  }, [tab]);
+
+  function openEvent(e: EventItem) {
+    unlockAudio();
+    if (e.gate) {
+      setGate(e.gate);
+      setEventId(e.id);
+      setTab("scan");
+    } else if (e.gates.length) {
+      setChoosingGate(e);
+    } else {
+      setGate(null);
+      setEventId(e.id);
+      setTab("scan");
+    }
+  }
+
+  let body: ReactNode;
+  if (tab === "events") body = <Events me={me} current={event} onOpen={openEvent} onRefresh={onRefresh} online={online} />;
+  else if (tab === "scan")
+    body = event ? (
+      <Scan key={event.id + (gate?.id ?? "")} event={event} gate={gate} me={me} online={online} onBack={() => setTab("events")} onHistory={() => setTab("history")} />
+    ) : (
+      <NoEvent me={me} onOpen={openEvent} />
+    );
+  else if (tab === "history") body = <History events={me.events} current={event} />;
+  else if (tab === "alerts")
+    body = (
+      <AlertsScreen
+        alerts={alerts}
+        onSettings={() => setTab("profile")}
+        onOpenEvent={(id) => {
+          const e = me.events.find((x) => x.id === id);
+          if (e) openEvent(e);
+        }}
+      />
+    );
+  else body = <Profile me={me} email={email} onSignOut={onSignOut} onRedoSetup={onRedoSetup} />;
+
+  return (
+    <>
+      <main className="flex min-h-0 flex-1 flex-col">{body}</main>
+      <TabBar tab={tab} onTab={setTab} unread={alerts.unread} live={Boolean(event)} />
+      {choosingGate && (
+        <GatePicker
+          event={choosingGate}
+          onPick={(g) => {
+            setGate(g);
+            setEventId(choosingGate.id);
+            setChoosingGate(null);
+            setTab("scan");
+          }}
+          onBack={() => setChoosingGate(null)}
+        />
+      )}
+    </>
+  );
 }
+
+function TabBar({ tab, onTab, unread, live }: { tab: Tab; onTab: (t: Tab) => void; unread: number; live: boolean }) {
+  const item = (t: Tab, label: string, icon: (c?: string) => ReactNode, badge?: number) => {
+    const on = tab === t;
+    return (
+      <button
+        key={t}
+        type="button"
+        onClick={() => onTab(t)}
+        aria-current={on ? "page" : undefined}
+        className={`relative flex flex-1 flex-col items-center gap-1 pb-1.5 pt-2 text-[10px] font-semibold ${on ? "text-fg" : "text-fg-subtle"}`}
+      >
+        {icon("h-[22px] w-[22px]")}
+        {label}
+        {on && <span className="absolute top-0 h-0.5 w-6 rounded-full bg-coral" />}
+        {badge ? (
+          <span className="absolute left-1/2 top-1 ml-1.5 min-w-[17px] rounded-full bg-coral px-1 text-center text-[10px] font-bold leading-[17px] text-white">{badge > 9 ? "9+" : badge}</span>
+        ) : null}
+      </button>
+    );
+  };
+  return (
+    <nav className="relative z-10 flex items-end border-t border-line bg-[#0b0b0b]/95 px-1 backdrop-blur" aria-label="Разделы">
+      {item("events", "Концерты", Icon.events)}
+      {item("history", "История", Icon.history)}
+      <button type="button" onClick={() => onTab("scan")} aria-current={tab === "scan" ? "page" : undefined} className="flex flex-1 flex-col items-center pb-1.5" aria-label="Сканер">
+        <span className={`-mt-5 grid h-14 w-14 place-items-center rounded-full border-4 border-ink text-white shadow-[0_8px_24px_-6px_rgba(255,77,77,.7)] ${tab === "scan" ? "bg-coral" : "bg-[#d63a3a]"}`}>
+          {Icon.scan("h-7 w-7")}
+        </span>
+        <span className={`mt-0.5 flex items-center gap-1 text-[10px] font-semibold ${tab === "scan" ? "text-fg" : "text-fg-subtle"}`}>
+          {live && <span className="h-1.5 w-1.5 rounded-full bg-[#1fc77a]" />}Сканер
+        </span>
+      </button>
+      {item("alerts", "Уведомления", Icon.bell, unread)}
+      {item("profile", "Профиль", Icon.user)}
+    </nav>
+  );
+}
+
+/* ---------------- общие куски ---------------- */
 
 function Splash() {
   return (
@@ -240,26 +326,12 @@ function Problem({ text, onRetry, onSignOut }: { text: string; onRetry?: () => v
   );
 }
 
-function NetBadge({ online }: { online: boolean }) {
-  return (
-    <span className={`inline-flex items-center gap-1.5 text-[11px] font-medium ${online ? "text-fg-subtle" : "text-coral"}`}>
-      <span className={`h-2 w-2 rounded-full ${online ? "bg-[#1fc77a]" : "animate-pulse bg-coral"}`} />
-      {online ? "Онлайн" : "Нет сети"}
-    </span>
-  );
-}
-
 /* ---------------- вход ---------------- */
 
 function Login() {
-  const [login, setLogin] = useState(() => {
-    try {
-      return localStorage.getItem("scanner:login") ?? "";
-    } catch {
-      return "";
-    }
-  });
+  const [login, setLogin] = useState(() => store.get("scanner:login") ?? "");
   const [password, setPassword] = useState("");
+  const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const appVersion = native()?.version?.();
@@ -277,13 +349,10 @@ function Login() {
       setError(/invalid/i.test(error.message) ? "Неверный логин или пароль" : isNetworkError(error) ? "Нет связи с сервером" : error.message);
       return;
     }
-    try {
-      localStorage.setItem("scanner:login", l);
-    } catch {
-      /* не страшно */
-    }
+    store.set("scanner:login", l);
   }
 
+  const input = "w-full rounded-btn border border-line-strong bg-surface px-4 py-3.5 text-base text-fg outline-none placeholder:text-fg-subtle focus:border-coral";
   return (
     <div className="relative flex flex-1 flex-col justify-center overflow-y-auto px-6 py-10">
       <div aria-hidden className="pointer-events-none absolute -right-28 -top-28 h-80 w-80 rounded-full opacity-40 blur-3xl" style={{ background: "radial-gradient(circle, #ff4d4d 0%, transparent 70%)" }} />
@@ -292,92 +361,120 @@ function Login() {
         <p className="mt-10 font-display text-[11px] font-bold uppercase tracking-[0.16em] text-coral">Вход для тикетора</p>
         <h1 className="mt-2 font-display text-3xl font-bold uppercase leading-[1.05]">Сканер<br />билетов</h1>
         <form onSubmit={submit} className="mt-8 space-y-3">
-          <input className="w-full rounded-btn border border-line-strong bg-surface px-4 py-3.5 text-base text-fg outline-none placeholder:text-fg-subtle focus:border-coral"
-            placeholder="Логин" autoCapitalize="none" autoCorrect="off" autoComplete="username" value={login} onChange={(e) => setLogin(e.target.value)} required />
-          <input type="password" className="w-full rounded-btn border border-line-strong bg-surface px-4 py-3.5 text-base text-fg outline-none placeholder:text-fg-subtle focus:border-coral"
-            placeholder="Пароль" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          <input id="login" className={input} placeholder="Логин" autoCapitalize="none" autoCorrect="off" autoComplete="username" value={login} onChange={(e) => setLogin(e.target.value)} required />
+          <div className="relative">
+            <input id="password" type={show ? "text" : "password"} className={`${input} pr-24`} placeholder="Пароль" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            <button type="button" onClick={() => setShow(!show)} className="absolute inset-y-0 right-3 my-auto h-8 px-2 text-xs font-semibold text-fg-muted">{show ? "Скрыть" : "Показать"}</button>
+          </div>
           {error && <p className="text-sm text-coral">{error}</p>}
           <button disabled={busy} className="btn btn-primary w-full py-4 text-sm disabled:opacity-60">{busy ? "Входим…" : "Войти"}</button>
         </form>
-        <p className="mt-6 text-xs leading-5 text-fg-subtle">Аккаунт выдаёт администратор. Регистрации в приложении нет.</p>
+        <p className="mt-6 text-xs leading-5 text-fg-subtle">Аккаунт выдаёт администратор. Забыли пароль? Попросите администратора задать новый.</p>
         {appVersion && <p className="mt-2 text-[11px] text-fg-faint">Версия приложения {appVersion}</p>}
       </div>
     </div>
   );
 }
 
-/* ---------------- список концертов ---------------- */
+/* ---------------- концерты ---------------- */
 
-function Events({ me, onOpen, onRefresh, onSignOut, online }: { me: Me; onOpen: (e: EventItem) => void; onRefresh: () => Promise<void>; onSignOut: () => void; online: boolean }) {
+function eventPhase(e: EventItem) {
+  const now = Date.now();
+  const doors = new Date(doorsAt(e)).getTime();
+  const start = new Date(e.starts_at).getTime();
+  if (now >= doors && now < start + 4 * 3600000) return { label: "Вход открыт", tone: "bg-[#1fc77a]/15 text-[#4ee09c]" };
+  if (doors - now < 3 * 3600000 && doors > now) return { label: `Вход в ${fmtTime(doorsAt(e), e.timezone)}`, tone: "bg-orange/15 text-orange" };
+  return null;
+}
+
+function Events({ me, current, onOpen, onRefresh, online }: { me: Me; current: EventItem | null; onOpen: (e: EventItem) => void; onRefresh: () => Promise<void>; online: boolean }) {
   const [refreshing, setRefreshing] = useState(false);
-  const [confirmOut, setConfirmOut] = useState(false);
   const refresh = async () => {
     setRefreshing(true);
     await onRefresh();
     setRefreshing(false);
   };
-  useEffect(() => {
-    const t = setInterval(() => document.visibilityState === "visible" && onRefresh(), 30000);
-    return () => clearInterval(t);
-  }, [onRefresh]);
+  const hour = Number(new Intl.DateTimeFormat("ru-RU", { timeZone: "Asia/Almaty", hour: "numeric" }).format(new Date()));
+  const hello = hour < 5 ? "Доброй ночи" : hour < 12 ? "Доброе утро" : hour < 18 ? "Добрый день" : "Добрый вечер";
 
   return (
     <>
-      <header className="flex items-center justify-between gap-3 px-5 pb-3 pt-4">
-        <Logo />
-        <div className="text-right">
-          <p className="text-sm font-medium text-fg">{me.name}</p>
-          <p className="text-[11px] text-fg-subtle">{me.role === "admin" ? "Администратор" : "Тикетор"}</p>
-        </div>
-      </header>
-      <div className="flex items-end justify-between gap-3 px-5 pb-3 pt-2">
-        <h1 className="font-display text-xl font-bold uppercase">Выберите концерт</h1>
-        <button onClick={refresh} className="text-xs text-coral" disabled={refreshing}>{refreshing ? "Обновляю…" : "Обновить"}</button>
-      </div>
+      <TabHeader
+        eyebrow={`${hello}, ${me.name.split(" ")[0]}`}
+        title="Мои концерты"
+        right={
+          <div className="flex flex-col items-end gap-2">
+            <NetBadge online={online} />
+            <button onClick={refresh} className="text-xs text-coral" disabled={refreshing}>{refreshing ? "Обновляю…" : "Обновить"}</button>
+          </div>
+        }
+      />
       <div className="flex-1 space-y-3 overflow-y-auto px-5 pb-6">
         {!me.events.length && (
-          <div className="rounded-card border border-dashed border-line-strong px-5 py-8 text-center text-sm text-fg-muted">
-            Вас пока не назначили ни на один концерт. Попросите администратора назначить вас, затем нажмите «Обновить».
+          <div className="rounded-card border border-dashed border-line-strong px-5 py-8 text-center text-sm leading-6 text-fg-muted">
+            Вас пока не назначили ни на один концерт. Как только администратор назначит, концерт появится здесь, а во вкладке «Уведомления» придёт сообщение.
           </div>
         )}
         {me.events.map((e) => {
           const pct = e.stats.total ? Math.round((e.stats.used / e.stats.total) * 100) : 0;
+          const phase = eventPhase(e);
+          const active = current?.id === e.id;
           return (
-            <button key={e.id} onClick={() => onOpen(e)} className="flex w-full items-center gap-4 rounded-card border border-line bg-surface p-3 text-left active:scale-[0.99] active:border-coral">
-              <div className="h-16 w-16 shrink-0 overflow-hidden rounded-[10px] bg-gradient-to-br from-orange to-[#b0161e]">
-                {e.poster_url && <img src={e.poster_url} alt="" className="h-full w-full object-cover" draggable={false} />}
+            <button key={e.id} onClick={() => onOpen(e)} className={`w-full rounded-card border bg-surface p-3 text-left active:scale-[0.99] ${active ? "border-coral/60" : "border-line"}`}>
+              <div className="flex items-center gap-4">
+                <div className="h-16 w-16 shrink-0 overflow-hidden rounded-[10px] bg-gradient-to-br from-orange to-[#b0161e]">
+                  {e.poster_url && <img src={e.poster_url} alt="" className="h-full w-full object-cover" draggable={false} />}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="min-w-0 truncate font-display text-[15px] font-bold uppercase leading-tight">{e.title}</p>
+                    {phase && <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${phase.tone}`}>{phase.label}</span>}
+                  </div>
+                  <p className="mt-0.5 truncate text-xs text-fg-muted">{fmtDate(e.starts_at, e.timezone)} · {fmtTime(e.starts_at, e.timezone)}{e.venue ? ` · ${e.venue}` : ""}</p>
+                  <div className="mt-2 h-1 overflow-hidden rounded-full bg-surface-2"><div className="h-full rounded-full bg-coral" style={{ width: `${pct}%` }} /></div>
+                  <p className="mt-1 flex justify-between gap-2 text-[11px] text-fg-subtle">
+                    <span className="tabular-nums">{e.stats.used} из {e.stats.total} прошли</span>
+                    {e.gate && <span className="font-semibold text-coral">Вход: {e.gate.name}</span>}
+                  </p>
+                </div>
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-display text-[15px] font-bold uppercase leading-tight">{e.title}</p>
-                <p className="mt-0.5 truncate text-xs text-fg-muted">{fmtDate(e.starts_at, e.timezone)} · {fmtTime(e.starts_at, e.timezone)}{e.venue ? ` · ${e.venue}` : ""}</p>
-                <div className="mt-2 h-1 overflow-hidden rounded-full bg-surface-2"><div className="h-full rounded-full bg-coral" style={{ width: `${pct}%` }} /></div>
-                <p className="mt-1 flex justify-between gap-2 text-[11px] text-fg-subtle">
-                  <span className="tabular-nums">{e.stats.used} из {e.stats.total} прошли</span>
-                  {e.gate && <span className="font-semibold text-coral">Вход: {e.gate.name}</span>}
-                </p>
-              </div>
+              {active && <p className="mt-3 border-t border-line pt-2.5 text-center text-xs font-semibold text-coral">Сканер открыт · вернуться</p>}
             </button>
           );
         })}
       </div>
-      <footer className="flex items-center justify-between border-t border-line px-5 py-3">
-        <NetBadge online={online} />
-        {confirmOut ? (
-          <span className="flex gap-4 text-sm">
-            <button className="text-coral" onClick={onSignOut}>Да, выйти</button>
-            <button className="text-fg-muted" onClick={() => setConfirmOut(false)}>Отмена</button>
-          </span>
-        ) : (
-          <button className="text-sm text-fg-muted" onClick={() => setConfirmOut(true)}>Выйти</button>
-        )}
-      </footer>
+    </>
+  );
+}
+
+function NoEvent({ me, onOpen }: { me: Me; onOpen: (e: EventItem) => void }) {
+  return (
+    <>
+      <TabHeader title="Сканер" />
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 px-8 text-center">
+        <span className="grid h-20 w-20 place-items-center rounded-[22px] bg-surface text-coral">{Icon.scan("h-10 w-10")}</span>
+        <p className="font-display text-lg font-bold uppercase">Выберите концерт</p>
+        <p className="text-sm leading-6 text-fg-muted">Сканер проверяет билеты только на выбранный концерт.</p>
+        <div className="mt-2 w-full space-y-2">
+          {me.events.slice(0, 3).map((e) => (
+            <button key={e.id} onClick={() => onOpen(e)} className="flex w-full items-center justify-between gap-3 rounded-card border border-line bg-surface px-4 py-3.5 text-left active:border-coral">
+              <span className="min-w-0">
+                <span className="block truncate font-display text-sm font-bold uppercase">{e.title}</span>
+                <span className="block text-xs text-fg-subtle">{fmtDate(e.starts_at, e.timezone)} · {fmtTime(e.starts_at, e.timezone)}</span>
+              </span>
+              {Icon.chevron("h-5 w-5 shrink-0 text-fg-subtle")}
+            </button>
+          ))}
+          {!me.events.length && <p className="text-sm text-fg-subtle">Вас пока не назначили ни на один концерт.</p>}
+        </div>
+      </div>
     </>
   );
 }
 
 function GatePicker({ event, onPick, onBack }: { event: EventItem; onPick: (g: Gate | null) => void; onBack: () => void }) {
   return (
-    <>
+    <div className="fixed inset-0 z-40 flex flex-col bg-ink [padding-bottom:env(safe-area-inset-bottom)] [padding-top:env(safe-area-inset-top)]">
       <header className="flex items-center gap-3 px-5 pb-3 pt-4">
         <button onClick={onBack} className="text-2xl leading-none text-fg-muted" aria-label="Назад">‹</button>
         <p className="truncate font-display text-sm font-bold uppercase">{event.title}</p>
@@ -390,7 +487,7 @@ function GatePicker({ event, onPick, onBack }: { event: EventItem; onPick: (g: G
         ))}
         <button onClick={() => onPick(null)} className="w-full rounded-card border border-dashed border-line-strong px-5 py-4 text-left text-sm text-fg-muted">Любой вход, без проверки зоны</button>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -398,17 +495,18 @@ function GatePicker({ event, onPick, onBack }: { event: EventItem; onPick: (g: G
 
 type Shown = ScanResult & { local?: "repeat_mine" };
 
-function Scan({ event, gate, me, online, onBack }: { event: EventItem; gate: Gate | null; me: Me; online: boolean; onBack: () => void }) {
+function Scan({ event, gate, me, online, onBack, onHistory }: { event: EventItem; gate: Gate | null; me: Me; online: boolean; onBack: () => void; onHistory: () => void }) {
+  const [settings] = useSettings();
   const [stats, setStats] = useState<Stats>(event.stats);
   const [result, setResult] = useState<Shown | null>(null);
   const [checking, setChecking] = useState(false);
   const [manual, setManual] = useState(false);
-  const [recent, setRecent] = useState<Recent[] | null>(null);
   const lastRef = useRef<{ code: string; at: number }>({ code: "", at: 0 });
   const busyRef = useRef(false);
 
-  // Экран не гаснет, пока открыт сканер.
+  // Экран не гаснет, пока открыт сканер (если включено в настройках).
   useEffect(() => {
+    if (!settings.keepAwake) return;
     let lock: { release: () => Promise<void> } | null = null;
     const nav = navigator as Navigator & { wakeLock?: { request: (t: "screen") => Promise<{ release: () => Promise<void> }> } };
     const get = () => nav.wakeLock?.request("screen").then((l) => (lock = l)).catch(() => undefined);
@@ -419,7 +517,7 @@ function Scan({ event, gate, me, online, onBack }: { event: EventItem; gate: Gat
       document.removeEventListener("visibilitychange", vis);
       lock?.release().catch(() => undefined);
     };
-  }, []);
+  }, [settings.keepAwake]);
 
   useEffect(() => {
     const t = setInterval(() => {
@@ -462,27 +560,18 @@ function Scan({ event, gate, me, online, onBack }: { event: EventItem; gate: Gat
     setResult(null);
   }, []);
 
-  // Успешный проход закрывается сам через 3 секунды, отказ — только кнопкой.
+  // Успешный проход закрывается сам (время в настройках), отказ — только кнопкой.
   useEffect(() => {
-    if (result?.result !== "ok") return;
-    const t = setTimeout(dismiss, result.ticket?.kind === "invite" ? 4000 : 3000);
+    if (result?.result !== "ok" || !settings.autoClose) return;
+    const t = setTimeout(dismiss, (settings.autoClose + (result.ticket?.kind === "invite" ? 1 : 0)) * 1000);
     return () => clearTimeout(t);
-  }, [result, dismiss]);
+  }, [result, dismiss, settings.autoClose]);
 
-  const paused = Boolean(result) || checking || manual || recent !== null;
-  const cam = useQrScanner((code) => check(code, true), paused);
-
-  async function openRecent() {
-    setRecent([]);
-    try {
-      setRecent(await rpc<Recent[]>("scanner_recent", { p_event: event.id, p_limit: 40 }));
-    } catch {
-      setRecent([]);
-    }
-  }
+  const paused = Boolean(result) || checking || manual;
+  const cam = useQrScanner((code) => check(code, true), paused, settings.camera);
 
   return (
-    <div className="relative flex flex-1 flex-col">
+    <div className="relative flex min-h-0 flex-1 flex-col">
       <header className="flex items-center gap-3 px-4 pb-2 pt-3">
         <button onClick={onBack} className="-ml-1 px-1 text-3xl leading-none text-fg-muted" aria-label="К списку концертов">‹</button>
         <div className="min-w-0 flex-1">
@@ -526,16 +615,15 @@ function Scan({ event, gate, me, online, onBack }: { event: EventItem; gate: Gat
         <StatBox label="ждём" value={Math.max(0, stats.total - stats.used)} />
         <StatBox label="отказов" value={stats.denied} />
       </div>
-      <div className="grid grid-cols-[1fr_auto_auto] gap-2 px-4 pb-4 pt-2">
+      <div className="grid grid-cols-[1fr_auto_auto] gap-2 px-4 pb-3 pt-2">
         <button className="btn btn-secondary py-3.5 text-xs" onClick={() => { unlockAudio(); setManual(true); }}>Ввести код</button>
         {cam.torch !== null && (
           <button className={`btn py-3.5 text-xs ${cam.torch ? "btn-primary" : "btn-secondary"}`} onClick={cam.toggleTorch} aria-label="Фонарик">Свет</button>
         )}
-        <button className="btn btn-secondary py-3.5 text-xs" onClick={openRecent}>История</button>
+        <button className="btn btn-secondary py-3.5 text-xs" onClick={onHistory}>История</button>
       </div>
 
       {manual && <ManualCode onClose={() => setManual(false)} onSubmit={(c) => { setManual(false); check(c, false); }} />}
-      {recent !== null && <RecentSheet list={recent} tz={event.timezone} onClose={() => setRecent(null)} />}
       {result && <ResultScreen r={result} event={event} onNext={dismiss} />}
     </div>
   );
@@ -555,8 +643,8 @@ function ManualCode({ onClose, onSubmit }: { onClose: () => void; onSubmit: (cod
   const clean = code.toUpperCase().replace(/[^0-9A-F-]/g, "");
   const valid = /^[0-9A-F]{12}(-\d{1,3})?$/.test(clean);
   return (
-    <div className="absolute inset-0 z-20 flex flex-col justify-end bg-black/70" onClick={onClose}>
-      <form className="rounded-t-[22px] bg-surface px-5 pb-8 pt-5" onClick={(e) => e.stopPropagation()} onSubmit={(e) => { e.preventDefault(); if (valid) onSubmit(clean); }}>
+    <div className="fixed inset-0 z-40 flex flex-col justify-end bg-black/70" onClick={onClose}>
+      <form className="rounded-t-[22px] bg-surface px-5 pt-5 [padding-bottom:calc(env(safe-area-inset-bottom)+28px)]" onClick={(e) => e.stopPropagation()} onSubmit={(e) => { e.preventDefault(); if (valid) onSubmit(clean); }}>
         <p className="font-display text-sm font-bold uppercase">Код с билета</p>
         <p className="mt-1 text-xs text-fg-subtle">12 символов под QR-кодом, например A41F9C02B7E1</p>
         <input autoFocus value={code} onChange={(e) => setCode(e.target.value)} maxLength={16} autoCapitalize="characters" autoCorrect="off" spellCheck={false}
@@ -566,44 +654,6 @@ function ManualCode({ onClose, onSubmit }: { onClose: () => void; onSubmit: (cod
           <button disabled={!valid} className="btn btn-primary py-3.5 disabled:opacity-50">Проверить</button>
         </div>
       </form>
-    </div>
-  );
-}
-
-const recentLabel: Record<string, [string, string]> = {
-  ok: ["Пропущен", "text-[#1fc77a]"],
-  already_used: ["Повтор", "text-coral"],
-  not_found: ["Не найден", "text-orange"],
-  invalid: ["Не билет", "text-orange"],
-  wrong_event: ["Другой концерт", "text-orange"],
-  wrong_gate: ["Не тот вход", "text-orange"],
-  void: ["Аннулирован", "text-coral"],
-  not_assigned: ["Нет доступа", "text-coral"],
-};
-
-function RecentSheet({ list, tz, onClose }: { list: Recent[]; tz: string; onClose: () => void }) {
-  return (
-    <div className="absolute inset-0 z-20 flex flex-col bg-ink">
-      <header className="flex items-center justify-between px-5 pb-3 pt-4">
-        <p className="font-display text-base font-bold uppercase">Мои последние сканы</p>
-        <button className="text-sm text-coral" onClick={onClose}>Закрыть</button>
-      </header>
-      <div className="flex-1 space-y-2 overflow-y-auto px-5 pb-6">
-        {!list.length && <p className="py-10 text-center text-sm text-fg-muted">Пока пусто.</p>}
-        {list.map((r, i) => {
-          const [label, color] = recentLabel[r.result] ?? [r.result, "text-fg-muted"];
-          return (
-            <div key={i} className="flex items-center gap-3 rounded-btn bg-surface px-3 py-2.5">
-              <span className="w-12 shrink-0 text-xs tabular-nums text-fg-subtle">{fmtTime(r.at, tz)}</span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm text-fg">{r.holder_name || (r.kind === "invite" ? "Гость" : r.code)}</p>
-                <p className="truncate text-[11px] text-fg-subtle">{r.kind === "invite" ? "Пригласительный" : r.category_name ?? r.message}</p>
-              </div>
-              <span className={`shrink-0 text-xs font-semibold ${color}`}>{label}</span>
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }
@@ -707,7 +757,7 @@ function ResultScreen({ r, event, onNext }: { r: Shown; event: EventItem; onNext
   }
 
   return (
-    <button type="button" onClick={() => ready && onNext()} className={`absolute inset-0 z-30 flex flex-col px-6 pb-6 pt-8 text-left text-white ${bg}`}>
+    <button type="button" onClick={() => ready && onNext()} className={`fixed inset-0 z-50 flex flex-col px-6 text-left text-white [padding-bottom:calc(env(safe-area-inset-bottom)+24px)] [padding-top:calc(env(safe-area-inset-top)+32px)] ${bg}`}>
       <p className={`font-display text-xs font-bold uppercase tracking-[0.16em] ${eyebrowColor}`}>{eyebrow}</p>
       <h2 className="mt-3 font-display text-[40px] font-bold uppercase leading-[1.02] [text-wrap:balance]">{title}</h2>
       {note && <p className="mt-4 text-lg leading-snug text-white/85">{note}</p>}
