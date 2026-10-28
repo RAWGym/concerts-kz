@@ -32,6 +32,7 @@ const actions: Record<string, { label: string; tone: "teal" | "coral" | "orange"
   invite_issued: { label: "Выписан", tone: "muted" },
   ticket_voided: { label: "Аннулирован", tone: "coral" },
   entry_reverted: { label: "Отмена прохода", tone: "orange" },
+  order_refunded: { label: "Возврат заказа", tone: "orange" },
   app_open: { label: "Вход в сканер", tone: "muted" },
   admin: { label: "Настройка", tone: "muted" },
 };
