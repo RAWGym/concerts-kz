@@ -64,7 +64,7 @@ export default function Dashboard() {
   }, [staff.role]);
 
   const tiles = [
-    { label: "Выручка", value: stats ? money(stats.revenue) : "…", hint: "по оплаченным заказам" },
+    { label: "Выручка", value: stats ? money(stats.revenue) : "…", hint: "по оплаченным заказам", to: staff.role === "admin" || staff.role === "sales" ? "/admin/finance" : undefined },
     { label: "Оплачено заказов", value: stats?.paid ?? "…", hint: stats ? `сегодня: ${stats.today}` : "" },
     { label: "Ждут оплаты", value: stats?.pending ?? "…", hint: "незавершённые заказы" },
     { label: "Новые заявки", value: leads.length, hint: "партнёры и артисты" },
@@ -77,13 +77,16 @@ export default function Dashboard() {
       </PageTitle>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {tiles.map((t) => (
-          <Card key={t.label}>
-            <p className="text-xs uppercase tracking-[0.08em] text-fg-subtle">{t.label}</p>
-            <p className="mt-2 font-display text-3xl font-bold text-fg">{t.value}</p>
-            <p className="mt-1 text-xs text-fg-subtle">{t.hint}</p>
-          </Card>
-        ))}
+        {tiles.map((t) => {
+          const card = (
+            <Card className={t.to ? "h-full transition-colors hover:border-coral/60" : "h-full"}>
+              <p className="text-xs uppercase tracking-[0.08em] text-fg-subtle">{t.label}</p>
+              <p className="mt-2 font-display text-3xl font-bold text-fg">{t.value}</p>
+              <p className="mt-1 text-xs text-fg-subtle">{t.to ? <>{t.hint} · <span className="text-coral">аналитика →</span></> : t.hint}</p>
+            </Card>
+          );
+          return t.to ? <Link key={t.label} to={t.to}>{card}</Link> : <div key={t.label}>{card}</div>;
+        })}
       </div>
 
       <h2 className="mb-4 mt-10 font-display text-sm font-semibold uppercase tracking-[0.06em] text-fg">Ближайшие события</h2>
