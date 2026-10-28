@@ -22,7 +22,7 @@ export type CameraState = "starting" | "on" | "denied" | "unavailable";
  * Камера с постоянным поиском QR. Пока paused = true, кадры не разбираются
  * (на экране результата), но камера не выключается, чтобы не ждать её запуска.
  */
-export function useQrScanner(onCode: (code: string) => void, paused: boolean) {
+export function useQrScanner(onCode: (code: string) => void, paused: boolean, facing: "back" | "front" = "back") {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [state, setState] = useState<CameraState>("starting");
   const [torch, setTorch] = useState<boolean | null>(null);
@@ -38,7 +38,7 @@ export function useQrScanner(onCode: (code: string) => void, paused: boolean) {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: false,
-        video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } },
+        video: { facingMode: { ideal: facing === "front" ? "user" : "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } },
       });
       streamRef.current = stream;
       const v = videoRef.current;
@@ -55,7 +55,7 @@ export function useQrScanner(onCode: (code: string) => void, paused: boolean) {
       const name = (e as Error).name;
       setState(name === "NotAllowedError" || name === "SecurityError" ? "denied" : "unavailable");
     }
-  }, []);
+  }, [facing]);
 
   useEffect(() => {
     start();

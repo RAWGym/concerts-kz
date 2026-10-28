@@ -3,7 +3,9 @@ package kz.concerts.scanner;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.NotificationManager;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.net.Uri;
@@ -12,6 +14,7 @@ import android.os.Bundle;
 import android.os.SystemClock;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
+import android.provider.Settings;
 import android.view.View;
 import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
@@ -23,6 +26,8 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
+import org.json.JSONObject;
+
 /**
  * Оболочка сканера билетов. Сами экраны живут на concerts.kz/scanner,
  * поэтому любые правки сайта приходят без переустановки. При каждом
@@ -31,6 +36,8 @@ import android.webkit.WebViewClient;
 public class MainActivity extends Activity {
 
     private static final int CAMERA_REQUEST = 41;
+    private static final int PERM_CAMERA = 42;
+    private static final int PERM_NOTIFICATIONS = 43;
     private static final long UPDATE_CHECK_INTERVAL_MS = 30 * 60 * 1000L;
 
     private WebView web;
@@ -148,11 +155,103 @@ public class MainActivity extends Activity {
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == PERM_CAMERA) {
+            reportPermission("camera");
+            return;
+        }
+        if (requestCode == PERM_NOTIFICATIONS) {
+            reportPermission("notifications");
+            return;
+        }
         if (requestCode != CAMERA_REQUEST || pendingPermission == null) return;
         boolean ok = grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED;
         if (ok) pendingPermission.grant(new String[]{PermissionRequest.RESOURCE_VIDEO_CAPTURE});
         else pendingPermission.deny();
         pendingPermission = null;
+    }
+
+    /* ---------- разрешения для экрана первой настройки ---------- */
+
+    private SharedPreferences prefs() {
+        return getSharedPreferences("perms", MODE_PRIVATE);
+    }
+
+    /** granted | denied | prompt | unsupported */
+    private String runtimeState(String permission) {
+        if (checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED) return "granted";
+        return prefs().getBoolean(permission, false) ? "denied" : "prompt";
+    }
+
+    String permissionState(String name) {
+        switch (name) {
+            case "camera":
+                return runtimeState(Manifest.permission.CAMERA);
+            case "notifications":
+                if (Build.VERSION.SDK_INT >= 33) {
+                    String st = runtimeState(Manifest.permission.POST_NOTIFICATIONS);
+                    if (!"granted".equals(st)) return st;
+                }
+                NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+                return nm == null || nm.areNotificationsEnabled() ? "granted" : "denied";
+            case "install":
+                if (Build.VERSION.SDK_INT < 26) return "unsupported";
+                if (getPackageManager().canRequestPackageInstalls()) return "granted";
+                return prefs().getBoolean("install", false) ? "denied" : "prompt";
+            default:
+                return "unsupported";
+        }
+    }
+
+    private void reportPermission(String name) {
+        String js = "window.__concertsPermission&&window.__concertsPermission('" + name + "','" + permissionState(name) + "')";
+        web.evaluateJavascript(js, null);
+    }
+
+    private void askPermission(String name) {
+        if ("granted".equals(permissionState(name))) {
+            reportPermission(name);
+            return;
+        }
+        switch (name) {
+            case "camera":
+                prefs().edit().putBoolean(Manifest.permission.CAMERA, true).apply();
+                requestPermissions(new String[]{Manifest.permission.CAMERA}, PERM_CAMERA);
+                break;
+            case "notifications":
+                if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                    prefs().edit().putBoolean(Manifest.permission.POST_NOTIFICATIONS, true).apply();
+                    requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, PERM_NOTIFICATIONS);
+                } else {
+                    openSettingsFor("notifications");
+                }
+                break;
+            case "install":
+                prefs().edit().putBoolean("install", true).apply();
+                openSettingsFor("install");
+                break;
+            default:
+                reportPermission(name);
+        }
+    }
+
+    private void openSettingsFor(String name) {
+        Intent i;
+        Uri pkg = Uri.parse("package:" + getPackageName());
+        if ("install".equals(name) && Build.VERSION.SDK_INT >= 26) {
+            i = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, pkg);
+        } else if ("notifications".equals(name) && Build.VERSION.SDK_INT >= 26) {
+            i = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName());
+        } else {
+            i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, pkg);
+        }
+        try {
+            startActivity(i);
+        } catch (Exception e) {
+            try {
+                startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, pkg));
+            } catch (Exception ignored) {
+            }
+        }
     }
 
     private class Chrome extends WebChromeClient {
@@ -223,6 +322,45 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public void retry() {
             runOnUiThread(MainActivity.this::retry);
+        }
+
+        @JavascriptInterface
+        public String permissions() {
+            try {
+                JSONObject o = new JSONObject();
+                o.put("camera", permissionState("camera"));
+                o.put("notifications", permissionState("notifications"));
+                o.put("install", permissionState("install"));
+                return o.toString();
+            } catch (Exception e) {
+                return "{}";
+            }
+        }
+
+        @JavascriptInterface
+        public void requestPermission(String name) {
+            runOnUiThread(() -> askPermission(name));
+        }
+
+        @JavascriptInterface
+        public void openSettings(String name) {
+            runOnUiThread(() -> openSettingsFor(name));
+        }
+
+        @JavascriptInterface
+        public void showNotification(int id, String title, String body) {
+            Notifier.show(MainActivity.this, id, title, body);
+        }
+
+        @JavascriptInterface
+        public void schedule(int id, double atMs, String title, String body) {
+            if (atMs <= System.currentTimeMillis()) return;
+            Notifier.schedule(MainActivity.this, id, (long) atMs, title, body);
+        }
+
+        @JavascriptInterface
+        public void cancel(int id) {
+            Notifier.cancel(MainActivity.this, id);
         }
     }
 }
