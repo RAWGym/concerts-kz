@@ -231,6 +231,7 @@ writeFileSync(
   `User-agent: *
 Allow: /
 Disallow: /admin
+Disallow: /scanner
 Disallow: /*/account
 Disallow: /*/login
 Disallow: /*/welcome
@@ -240,5 +241,30 @@ Disallow: /*/events/*/tickets
 Sitemap: ${SITE}/sitemap.xml
 `,
 );
+
+// Приложение тикетора: своя страница, чтобы на iPhone и Android его можно
+// было поставить на экран «Домой» как отдельное приложение (PWA).
+{
+  const head = [
+    `<title>Concerts Сканер</title>`,
+    `<meta name="robots" content="noindex, nofollow" />`,
+    `<link rel="manifest" href="/scanner/manifest.webmanifest" />`,
+    `<meta name="mobile-web-app-capable" content="yes" />`,
+    `<meta name="apple-mobile-web-app-capable" content="yes" />`,
+    `<meta name="apple-mobile-web-app-title" content="Сканер" />`,
+    `<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />`,
+    `<meta name="format-detection" content="telephone=no" />`,
+  ].join("\n    ");
+  const html = template
+    .replace(/<title>[\s\S]*?<\/title>\s*/, "")
+    .replace(/<meta name="description"[^>]*>\s*/, "")
+    .replace(/<meta name="viewport"[^>]*>/, `<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />`)
+    .replace(/<meta name="theme-color"[^>]*>/, `<meta name="theme-color" content="#050505" />`)
+    .replace(/<link rel="apple-touch-icon"[^>]*>/, `<link rel="apple-touch-icon" href="/scanner/apple-touch-icon.png" />`)
+    .replace("</head>", `    ${head}\n  </head>`);
+  if (!html.includes("viewport-fit=cover") || !html.includes("/scanner/apple-touch-icon.png")) throw new Error("postbuild: шаблон scanner/index.html не собрался");
+  mkdirSync("dist/scanner", { recursive: true });
+  writeFileSync("dist/scanner/index.html", html);
+}
 
 console.log(`postbuild: ${urls.length} страниц, ${events.length} событий, ${reports.length} отчётов, ${news.length} новостей`);

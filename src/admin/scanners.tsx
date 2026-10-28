@@ -23,6 +23,27 @@ type Assignment = { user_id: string; gate_id: string | null; created_at: string 
 
 const SCANNER_DOMAIN = "@scanner.concerts.kz";
 /** Последняя версия APK из Releases на GitHub. */
+/** Ссылка на веб-приложение сканера для iPhone (ставится на экран «Домой»). */
+const PWA_URL = "https://concerts.kz/scanner/";
+
+function CopyLink({ value }: { value: string }) {
+  const [done, setDone] = useState(false);
+  return (
+    <button
+      type="button"
+      className="inline-flex items-center gap-2 text-coral hover:underline"
+      onClick={() => {
+        navigator.clipboard?.writeText(value).then(() => {
+          setDone(true);
+          setTimeout(() => setDone(false), 2000);
+        }, () => undefined);
+      }}
+    >
+      {done ? "Ссылка скопирована" : `Скопировать ссылку ${value.replace(/^https:\/\//, "")}`}
+    </button>
+  );
+}
+
 const APK_URL = "https://github.com/RAWGym/concerts-kz/releases/latest/download/concerts-scanner.apk";
 const loginOf = (email: string | null) => (email?.endsWith(SCANNER_DOMAIN) ? email.slice(0, -SCANNER_DOMAIN.length) : email ?? "");
 
@@ -270,15 +291,24 @@ export default function Scanners() {
       )}
 
       {/* ---------- приложение ---------- */}
-      <Card className="mb-10 flex flex-wrap items-center gap-6">
-        <div className="rounded-btn bg-white p-2"><QrCode value={APK_URL} className="h-28 w-28" /></div>
-        <div className="min-w-0 flex-1 space-y-2 text-sm text-fg-muted">
-          <p className="font-display text-sm font-bold uppercase text-fg">Приложение для Android</p>
-          <p>Тикетор наводит камеру телефона на этот QR или открывает ссылку, скачивает APK и устанавливает (один раз разрешить установку из браузера). Дальше приложение обновляется само при запуске.</p>
-          <p>Без установки сканер работает и в браузере телефона: <span className="text-fg">concerts.kz/scanner</span></p>
-          <a href={APK_URL} className="inline-block text-coral hover:underline">Скачать concerts-scanner.apk</a>
-        </div>
-      </Card>
+      <div className="mb-10 grid gap-4 lg:grid-cols-2">
+        <Card className="flex items-center gap-5">
+          <div className="shrink-0 rounded-btn bg-white p-2"><QrCode value={APK_URL} className="h-28 w-28" /></div>
+          <div className="min-w-0 flex-1 space-y-2 text-sm text-fg-muted">
+            <p className="font-display text-sm font-bold uppercase text-fg">Android</p>
+            <p>Тикетор наводит камеру на QR, скачивает APK и устанавливает (один раз разрешить установку из браузера). Обновляется само при запуске.</p>
+            <a href={APK_URL} className="inline-block text-coral hover:underline">Скачать concerts-scanner.apk</a>
+          </div>
+        </Card>
+        <Card className="flex items-center gap-5">
+          <div className="shrink-0 rounded-btn bg-white p-2"><QrCode value={PWA_URL} className="h-28 w-28" /></div>
+          <div className="min-w-0 flex-1 space-y-2 text-sm text-fg-muted">
+            <p className="font-display text-sm font-bold uppercase text-fg">iPhone</p>
+            <p>Тикетор открывает ссылку в Safari, нажимает «Поделиться» → «На экран Домой». Появится иконка «Сканер», приложение открывается на весь экран и обновляется само.</p>
+            <CopyLink value={PWA_URL} />
+          </div>
+        </Card>
+      </div>
 
       {/* ---------- аккаунты ---------- */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
