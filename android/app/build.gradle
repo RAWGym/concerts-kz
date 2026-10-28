@@ -1,0 +1,55 @@
+plugins {
+    id "com.android.application"
+}
+
+// Номер версии задаёт сборка на GitHub (номер запуска), локально — 1.
+def vCode = (project.findProperty("versionCode") ?: "1").toInteger()
+def vName = project.findProperty("versionName") ?: "1.0.${vCode}"
+
+android {
+    namespace "kz.concerts.scanner"
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "kz.concerts.scanner"
+        minSdk 24
+        // 34, а не 35: на Android 15 при 35 окно принудительно уходит под
+        // системные панели, а веб-экраны сканера на это не рассчитаны.
+        targetSdk 34
+        versionCode vCode
+        versionName vName
+        buildConfigField "String", "START_URL", '"https://concerts.kz/scanner"'
+        buildConfigField "String", "UPDATE_URL", '"https://github.com/RAWGym/concerts-kz/releases/latest/download/version.json"'
+        buildConfigField "String", "APK_URL", '"https://github.com/RAWGym/concerts-kz/releases/latest/download/concerts-scanner.apk"'
+    }
+
+    signingConfigs {
+        release {
+            // Ключ подписи расшифровывает сборка на GitHub (см. .github/workflows/android.yml).
+            // Один и тот же ключ обязателен: иначе обновление не встанет поверх.
+            def ks = System.getenv("ANDROID_KEYSTORE_FILE")
+            if (ks) {
+                storeFile file(ks)
+                storePassword System.getenv("ANDROID_SIGNING_PASSWORD")
+                keyAlias "concerts-scanner"
+                keyPassword System.getenv("ANDROID_SIGNING_PASSWORD")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig System.getenv("ANDROID_KEYSTORE_FILE") ? signingConfigs.release : null
+        }
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

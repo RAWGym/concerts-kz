@@ -63,6 +63,11 @@ export type Order = {
 /** Билет для отдельной страницы: всё, что печатается на билете. */
 export type TicketView = {
   code: string;
+  /** sale — купленный, invite — пригласительный (без цены). */
+  kind?: "sale" | "invite";
+  /** valid — действует, used — по нему уже прошли, void — аннулирован. */
+  status?: "valid" | "used" | "void";
+  usedAt?: string | null;
   index: number;
   count: number;
   category: string;

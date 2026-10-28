@@ -11,18 +11,20 @@ export function db(): SupabaseClient {
   return createBrowserSupabase() as unknown as SupabaseClient;
 }
 
-export type Role = "admin" | "editor" | "sales";
+export type Role = "admin" | "editor" | "sales" | "scanner";
 
 export const roleLabels: Record<Role, string> = {
   admin: "Администратор",
   editor: "Редактор",
   sales: "Продажи",
+  scanner: "Тикетор",
 };
 
 export const roleHints: Record<Role, string> = {
   admin: "Всё, включая сотрудников и роли",
   editor: "События, площадки и контент сайта",
   sales: "Заказы и заявки, без правки контента",
+  scanner: "Только сканер билетов на назначенных концертах",
 };
 
 export const canEdit = (role: Role | null) => role === "admin" || role === "editor";
@@ -129,3 +131,15 @@ export function cleanI18n(v: I18n): I18n {
   for (const k of ["ru", "kz", "en"] as const) if (v[k]?.trim()) out[k] = v[k]!.trim();
   return out;
 }
+
+/** Ошибка Supabase человеческим текстом (сообщения функций базы уже на русском). */
+export function dbError(e: { message?: string; code?: string } | null | undefined) {
+  if (!e) return "";
+  if (e.code === "42501" || /permission denied|row-level security/i.test(e.message ?? "")) return "Нет прав на это действие";
+  if (e.code === "23505") return "Такая запись уже есть";
+  return e.message ?? "Ошибка";
+}
+
+/** Название события на русском. */
+export const titleOf = (e: { slug: string; translations?: { locale: string; title: string }[] } | null | undefined) =>
+  e ? e.translations?.find((t) => t.locale === "ru")?.title ?? e.translations?.[0]?.title ?? e.slug : "–";

@@ -176,7 +176,7 @@ export type SiteStatRow = {
 
 export type AdminRow = {
   user_id: string;
-  role: "admin" | "editor" | "sales";
+  role: "admin" | "editor" | "sales" | "scanner";
   email: string | null;
   full_name: string | null;
   created_at: string;

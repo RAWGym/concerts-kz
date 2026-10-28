@@ -4,7 +4,16 @@ import { formatDateTime, roleHints, roleLabels, staffApi, type Role } from "./db
 import { useStaff } from "./layout";
 import { Card, Field, Notice, PageTitle, Spinner, Table, inputCls } from "./ui";
 
-type Member = { user_id: string; role: Role; email: string | null; full_name: string | null; created_at: string; last_sign_in_at: string | null };
+type Member = {
+  user_id: string;
+  role: Role;
+  email: string | null;
+  full_name: string | null;
+  created_at: string;
+  last_sign_in_at: string | null;
+  can_manage_scanners: boolean;
+  can_issue_invites: boolean;
+};
 
 const ROLES: Role[] = ["admin", "editor", "sales"];
 
@@ -26,7 +35,8 @@ export default function Staff() {
   async function load() {
     try {
       const { staff } = await staffApi<{ staff: Member[] }>({ action: "list" });
-      setList(staff);
+      // Тикеторы живут в разделе «Тикеторы и входы».
+      setList(staff.filter((m) => m.role !== "scanner"));
     } catch (e) {
       setMsg({ kind: "error", text: (e as Error).message });
       setList([]);
@@ -106,7 +116,7 @@ export default function Staff() {
       </div>
 
       {!list ? <Spinner /> : (
-        <Table head={["Сотрудник", "Роль", "Последний вход", ""]}>
+        <Table head={["Сотрудник", "Роль", "Права на вход", "Последний вход", ""]}>
           {list.map((m) => (
             <tr key={m.user_id}>
               <td className="px-4 py-3">
@@ -120,6 +130,24 @@ export default function Staff() {
                   onChange={(e) => act({ action: "update", user_id: m.user_id, role: e.target.value }, "Роль изменена")}>
                   {ROLES.map((r) => <option key={r} value={r}>{roleLabels[r]}</option>)}
                 </select>
+              </td>
+              <td className="px-4 py-3 text-xs text-fg-muted">
+                {m.role === "admin" ? (
+                  <span>Все права</span>
+                ) : (
+                  <div className="space-y-1.5">
+                    {([
+                      ["can_manage_scanners", "Создаёт тикеторов"],
+                      ["can_issue_invites", "Выписывает пригласительные"],
+                    ] as const).map(([flag, label]) => (
+                      <label key={flag} className="flex cursor-pointer items-center gap-2">
+                        <input type="checkbox" className="accent-coral" checked={m[flag]}
+                          onChange={(e) => act({ action: "update", user_id: m.user_id, [flag]: e.target.checked }, "Права обновлены")} />
+                        {label}
+                      </label>
+                    ))}
+                  </div>
+                )}
               </td>
               <td className="px-4 py-3 text-fg-muted">{m.last_sign_in_at ? formatDateTime(m.last_sign_in_at) : "Ещё не входил"}</td>
               <td className="whitespace-nowrap px-4 py-3 text-right text-xs">
