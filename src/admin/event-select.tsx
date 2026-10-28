@@ -68,7 +68,7 @@ export function useSelectedEvent(events: EventOption[] | null) {
 export function EventSelect({ events, value, onChange }: { events: EventOption[]; value: string; onChange: (id: string) => void }) {
   return (
     <select
-      className="max-w-full rounded-btn border border-line-strong bg-surface px-3 py-2 text-sm text-fg"
+      className="w-full min-w-0 max-w-full sm:w-auto rounded-btn border border-line-strong bg-surface px-3 py-2 text-sm text-fg"
       value={value}
       onChange={(e) => onChange(e.target.value)}
     >
