@@ -15,7 +15,11 @@ type Order = {
   id: string;
   number: number;
   status: Status;
+  /** sale: покупка, upgrade: доплата за апгрейд (билетов не добавляет). */
+  kind: "sale" | "upgrade";
   total: number;
+  /** Сколько уже вернули (частичный возврат оставляет заказ оплаченным). */
+  refunded_amount: number;
   service_fee: number;
   currency: string;
   created_at: string;
@@ -75,8 +79,12 @@ type PeriodId = (typeof PERIODS)[number]["id"];
 
 /** Заказ «ждёт оплаты» только пока не истекла бронь. */
 const isLivePending = (o: Order, now: number) => o.status === "pending" && (!o.expires_at || Date.parse(o.expires_at) > now);
-const tickets = (o: Order) => o.items.reduce((s, i) => s + i.quantity, 0);
+const tickets = (o: Order) => (o.kind === "upgrade" ? 0 : o.items.reduce((s, i) => s + i.quantity, 0));
 const sum = <T,>(list: T[], f: (x: T) => number) => list.reduce((s, x) => s + f(x), 0);
+/** Возвращено по заказу. У старых возвратов без суммы считаем весь заказ. */
+const refundOf = (o: Order) => (o.status === "refunded" ? o.refunded_amount || o.total : o.refunded_amount);
+/** Сколько по заказу осталось у нас после возвратов. */
+const net = (o: Order) => o.total - refundOf(o);
 
 function metrics(list: Order[], now: number) {
   const paid = list.filter((o) => o.status === "paid");
@@ -84,8 +92,9 @@ function metrics(list: Order[], now: number) {
   const pending = list.filter((o) => isLivePending(o, now));
   const failed = list.filter((o) => o.status === "failed");
   const lost = list.filter((o) => o.status === "expired" || (o.status === "pending" && !isLivePending(o, now)));
-  const revenue = sum(paid, (o) => Number(o.total));
-  const refundSum = sum(refunded, (o) => Number(o.total));
+  const revenue = sum(paid, net);
+  const refundSum = sum(paid, refundOf) + sum(refunded, refundOf);
+  const upgrades = paid.filter((o) => o.kind === "upgrade");
   const finished = paid.length + refunded.length + failed.length + lost.length;
   return {
     paid,
@@ -96,11 +105,13 @@ function metrics(list: Order[], now: number) {
     revenue,
     fees: sum(paid, (o) => Number(o.service_fee)),
     tickets: sum(paid, tickets),
-    avg: paid.length ? revenue / paid.length : 0,
+    avg: paid.length - upgrades.length ? revenue / (paid.length - upgrades.length) : 0,
     refundSum,
     refundRate: revenue + refundSum ? refundSum / (revenue + refundSum) : 0,
     conversion: finished ? (paid.length + refunded.length) / finished : 0,
     pendingSum: sum(pending, (o) => Number(o.total)),
+    upgrades: upgrades.length,
+    upgradesSum: sum(upgrades, net),
   };
 }
 
@@ -111,7 +122,8 @@ const num = (n: number) => new Intl.NumberFormat("ru-RU").format(Math.round(n));
 
 export default function Finance() {
   const staff = useStaff();
-  const allowed = staff.role === "admin" || staff.role === "sales";
+  // Суммы видят и финансы, и метрики (маркетолог): данные без покупателей.
+  const allowed = staff.can("finance", "metrics");
 
   const [orders, setOrders] = useState<Order[] | null>(null);
   const [events, setEvents] = useState<Ev[]>([]);
@@ -134,10 +146,7 @@ export default function Finance() {
     const c = db();
     Promise.all([
       fetchAll<Order>((a, b) =>
-        c.from("orders")
-          .select("id, number, status, total, service_fee, currency, created_at, updated_at, expires_at, event_id, items:order_items(category_id, category_name, quantity, unit_price)")
-          .order("created_at")
-          .range(a, b),
+        c.rpc("metrics_orders").range(a, b),
       ),
       fetchAll<Ev>((a, b) =>
         c.from("events")
@@ -145,10 +154,10 @@ export default function Finance() {
           .order("starts_at", { ascending: false })
           .range(a, b),
       ),
-      fetchAll<Ticket>((a, b) => c.from("tickets").select("event_id, kind, status").range(a, b)),
+      fetchAll<Ticket>((a, b) => c.rpc("metrics_tickets").range(a, b)),
     ])
       .then(([o, e, t]) => {
-        setOrders(o.map((x) => ({ ...x, total: Number(x.total), service_fee: Number(x.service_fee) })));
+        setOrders(o.map((x) => ({ ...x, kind: x.kind ?? "sale", total: Number(x.total), refunded_amount: Number(x.refunded_amount ?? 0), service_fee: Number(x.service_fee) })));
         setEvents(e);
         setTix(t);
       })
@@ -194,7 +203,7 @@ export default function Finance() {
     for (const o of m.paid) {
       const i = Math.min(Math.floor((keyToUtc(dayKey(o.created_at)) - keyToUtc(startKey)) / (step * 86400000)), buckets.length - 1);
       if (i < 0) continue;
-      buckets[i].revenue += o.total;
+      buckets[i].revenue += net(o);
       buckets[i].tickets += tickets(o);
       buckets[i].orders += 1;
     }
@@ -216,7 +225,7 @@ export default function Finance() {
         const key = `${o.event_id}:${i.category_id}`;
         const t = tariffs.get(key) ?? { label: i.category_name, revenue: 0, qty: 0, event: evTitle.get(o.event_id) ?? "" };
         t.revenue += i.quantity * Number(i.unit_price);
-        t.qty += i.quantity;
+        t.qty += o.kind === "upgrade" ? 0 : i.quantity;
         tariffs.set(key, t);
       }
     }
@@ -400,13 +409,13 @@ export default function Finance() {
                 )}
               </div>
             </Card>
-            <Kpi label="Продано билетов" value={num(data.m.tickets)} delta={<Delta cur={data.m.tickets} prev={data.pm?.tickets} />} hint={`${data.m.paid.length} оплаченных заказов`} />
+            <Kpi label="Продано билетов" value={num(data.m.tickets)} delta={<Delta cur={data.m.tickets} prev={data.pm?.tickets} />} hint={`${data.m.paid.length - data.m.upgrades} оплаченных заказов${data.m.upgrades ? ` · апгрейдов ${data.m.upgrades} на ${money(data.m.upgradesSum)}` : ""}`} />
             <Kpi label="Средний чек" value={money(data.m.avg)} delta={<Delta cur={data.m.avg} prev={data.pm?.avg} />} hint={data.m.tickets ? `≈ ${money(data.m.revenue / data.m.tickets)} за билет` : "нет продаж"} />
             <Kpi
               label="Возвраты"
               value={pct(data.m.refundRate, 1)}
               delta={<Delta cur={data.m.refundRate} prev={data.pm?.refundRate} inverse points />}
-              hint={data.m.refunded.length ? `${data.m.refunded.length} зак. на ${money(data.m.refundSum)}` : "возвратов нет"}
+              hint={data.m.refundSum ? `${money(data.m.refundSum)}${data.m.refunded.length ? `, полностью ${data.m.refunded.length} зак.` : ""}` : "возвратов нет"}
             />
             <Kpi
               label="Оплачивают"

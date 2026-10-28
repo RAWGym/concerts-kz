@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 
-import { db, roleLabels } from "./db";
+import { db } from "./db";
+import { positionLabels } from "./permissions";
 import { useStaff } from "./layout";
 import { Card, Field, Notice, PageTitle, inputCls } from "./ui";
 
@@ -25,7 +26,7 @@ export default function Account() {
       <PageTitle title="Мой аккаунт" />
       <Card className="max-w-md">
         <p className="text-sm text-fg">{me.email}</p>
-        <p className="mt-1 text-xs text-fg-subtle">{roleLabels[me.role]}</p>
+        <p className="mt-1 text-xs text-fg-subtle">{positionLabels[me.position]}</p>
         <form onSubmit={onSubmit} className="mt-6 space-y-4">
           <Field label="Новый пароль"><input name="p1" type="password" autoComplete="new-password" className={inputCls} /></Field>
           <Field label="Повторите пароль"><input name="p2" type="password" autoComplete="new-password" className={inputCls} /></Field>

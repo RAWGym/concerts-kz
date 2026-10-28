@@ -83,7 +83,11 @@ export function EventCard({
 
         {!past && (
           <p className="mt-3 text-sm text-fg-subtle">
-            {event.isSoldOut ? t.actions.soldOut : (price ?? t.actions.soon)}
+            {event.changeKind === "cancelled"
+              ? t.actions.cancelled
+              : event.isSoldOut
+                ? t.actions.soldOut
+                : `${event.changeKind === "postponed" ? `${t.actions.postponed} · ` : ""}${price ?? t.actions.soon}`}
           </p>
         )}
       </div>

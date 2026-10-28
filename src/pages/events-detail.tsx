@@ -21,9 +21,9 @@ import { tickets } from "@/lib/tickets/provider";
 
 /** Подписи, которых нет в общем словаре. */
 const L: Record<Locale, Record<string, string>> = {
-  ru: { home: "Главная", afisha: "Афиша", artist: "Исполнитель", age: "Возраст", date: "Дата", start: "Начало", doors: "Вход", schedule: "Расписание", tickets: "Билеты", more: "Показать полностью", less: "Скрыть", noAge: "Без ограничений", ended: "Событие прошло", reports: "Смотреть фотоотчёты" },
-  kz: { home: "Басты бет", afisha: "Афиша", artist: "Орындаушы", age: "Жас шегі", date: "Күні", start: "Басталуы", doors: "Кіру", schedule: "Кесте", tickets: "Билеттер", more: "Толық көрсету", less: "Жасыру", noAge: "Шектеусіз", ended: "Іс-шара өтті", reports: "Фотоесептерді қарау" },
-  en: { home: "Home", afisha: "Events", artist: "Artist", age: "Age", date: "Date", start: "Starts", doors: "Doors", schedule: "Schedule", tickets: "Tickets", more: "Show more", less: "Hide", noAge: "All ages", ended: "This event has passed", reports: "See photo reports" },
+  ru: { home: "Главная", afisha: "Афиша", artist: "Исполнитель", age: "Возраст", date: "Дата", start: "Начало", doors: "Вход", schedule: "Расписание", tickets: "Билеты", more: "Показать полностью", less: "Скрыть", noAge: "Без ограничений", ended: "Событие прошло", reports: "Смотреть фотоотчёты", cancelled: "Концерт отменён", cancelledText: "Мы вернём полную стоимость билетов. Покупателям пришло письмо со ссылкой на заявку о возврате, её же можно открыть в личном кабинете.", postponed: "Концерт перенесён", postponedText: "Купленные билеты действуют на новую дату. Прежняя дата: {old}. Если новая дата не подходит, оформите возврат в личном кабинете до начала концерта." },
+  kz: { home: "Басты бет", afisha: "Афиша", artist: "Орындаушы", age: "Жас шегі", date: "Күні", start: "Басталуы", doors: "Кіру", schedule: "Кесте", tickets: "Билеттер", more: "Толық көрсету", less: "Жасыру", noAge: "Шектеусіз", ended: "Іс-шара өтті", reports: "Фотоесептерді қарау", cancelled: "Концерт болдырылмады", cancelledText: "Билеттердің толық құнын қайтарамыз. Сатып алушыларға қайтару өтінімінің сілтемесі бар хат жіберілді, оны жеке кабинеттен де ашуға болады.", postponed: "Концерт ауыстырылды", postponedText: "Сатып алынған билеттер жаңа күнге жарамды. Бұрынғы күні: {old}. Жаңа күн сәйкес келмесе, концерт басталғанға дейін жеке кабинетте қайтаруды рәсімдеңіз." },
+  en: { home: "Home", afisha: "Events", artist: "Artist", age: "Age", date: "Date", start: "Starts", doors: "Doors", schedule: "Schedule", tickets: "Tickets", more: "Show more", less: "Hide", noAge: "All ages", ended: "This event has passed", reports: "See photo reports", cancelled: "Concert cancelled", cancelledText: "We'll refund the full ticket price. Buyers received an email with a refund request link; you can also find it in your account.", postponed: "Concert postponed", postponedText: "Tickets you bought are valid for the new date. Original date: {old}. If the new date doesn't suit you, request a refund in your account before the concert starts." },
 };
 
 /** «24 октября, суббота» в часовом поясе площадки. */
@@ -145,6 +145,17 @@ export default async function EventPage({
               {event.subtitle && (
                 <p className="mt-3 max-w-2xl text-base leading-7 text-fg-muted md:text-lg">{event.subtitle}</p>
               )}
+              {event.changeKind && !ended && (
+                <div className={`mt-5 max-w-2xl rounded-[14px] border px-4 py-3 text-sm leading-6 ${event.changeKind === "cancelled" ? "border-coral/60 bg-coral/10" : "border-orange/60 bg-orange/10"}`}>
+                  <p className="font-display font-semibold uppercase tracking-[0.04em] text-fg">{event.changeKind === "cancelled" ? l.cancelled : l.postponed}</p>
+                  <p className="mt-1 text-fg-muted">
+                    {event.changeKind === "cancelled"
+                      ? l.cancelledText
+                      : l.postponedText.replace("{old}", event.originalStartsAt ? `${dayAndWeekday(event.originalStartsAt, locale, event.timezone).day}, ${formatEventTime(event.originalStartsAt, locale, event.timezone)}` : "–")}
+                  </p>
+                  <Link href={localePath(locale, "/account")} className="mt-2 inline-block text-xs font-semibold text-coral hover:underline">{t.checkout.myTickets} →</Link>
+                </div>
+              )}
 
               <dl className="mt-7 grid grid-cols-2 gap-px overflow-hidden rounded-[16px] border border-line bg-line sm:grid-cols-3">
                 {facts.map((fact) => (
@@ -163,7 +174,7 @@ export default async function EventPage({
                     <Link href={localePath(locale, "/reports")} className="btn btn-primary">{l.reports}</Link>
                   </>
                 ) : event.isSoldOut ? (
-                  <span className="btn btn-secondary cursor-default opacity-70">{t.actions.soldOut}</span>
+                  <span className="btn btn-secondary cursor-default opacity-70">{event.changeKind === "cancelled" ? l.cancelled : t.actions.soldOut}</span>
                 ) : (
                   <>
                     <Link href={buyHref} target={external ? "_blank" : undefined} rel={external ? "noreferrer" : undefined} className="btn btn-primary">

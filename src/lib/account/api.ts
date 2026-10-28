@@ -22,11 +22,12 @@ import { displayPrice } from "@/lib/tickets/seats";
  */
 
 const ORDER_FIELDS = `
-  id, number, status, total, service_fee, currency, created_at,
+  id, number, status, kind, refunded_amount, total, service_fee, currency, created_at,
   items:order_items ( id, category_name, seat_label, quantity, unit_price, ticket_code ),
   event:events (
     id, slug, category, starts_at, age_limit, poster_url, cover_url,
     price_from, currency, badge, is_featured, is_sold_out, ticketon_url,
+    change_kind, original_starts_at,
     venue:venues ( name, city, city_i18n, address, timezone ),
     translations:event_translations ( locale, title, subtitle, description )
   )
@@ -36,6 +37,8 @@ type RawOrder = {
   id: string;
   number: number;
   status: AccountOrder["status"];
+  kind?: AccountOrder["kind"];
+  refunded_amount?: number | string | null;
   total: number | string;
   service_fee: number | string;
   currency: AccountOrder["currency"];
@@ -69,6 +72,8 @@ export async function getMyOrders(userId: string, locale: Locale): Promise<Accou
     id: o.id,
     number: o.number,
     status: o.status,
+    kind: o.kind ?? "sale",
+    refundedAmount: Number(o.refunded_amount ?? 0),
     total: Number(o.total),
     serviceFee: Number(o.service_fee),
     currency: o.currency,
@@ -97,6 +102,9 @@ export function ticketsFromOrders(orders: AccountOrder[]): AccountTicket[] {
         const base = item.ticketCode ?? `${order.number}-${item.id.slice(0, 6)}`;
         out.push({
           id: `${item.id}-${n}`,
+          ticketId: null,
+          status: "valid",
+          upgraded: false,
           code: item.quantity > 1 ? `${base}-${n + 1}` : base,
           categoryName: item.categoryName,
           seatLabel: item.seatLabel,
@@ -110,6 +118,59 @@ export function ticketsFromOrders(orders: AccountOrder[]): AccountTicket[] {
     }
   }
   return out.sort((a, b) => a.event.startsAt.localeCompare(b.event.startsAt));
+}
+
+type RawTicket = {
+  id: string;
+  code: string;
+  status: "valid" | "used" | "void";
+  category_name: string;
+  seat_label: string | null;
+  price: number | string;
+  paid_total: number | string | null;
+  currency: string | null;
+  upgraded_from: string | null;
+  upgraded_to: string | null;
+  order_id: string;
+};
+
+/**
+ * Действующие билеты из таблицы tickets: учитывают апгрейды и возвраты
+ * (аннулированные не показываем). Если таблица недоступна, собираем из заказов.
+ */
+export async function getMyTickets(orders: AccountOrder[]): Promise<AccountTicket[]> {
+  const paid = orders.filter((o) => o.status === "paid" || o.status === "refunded");
+  if (!isSupabaseConfigured || !paid.length) return ticketsFromOrders(orders);
+  const { data, error } = await client()
+    .from("tickets")
+    .select("id, code, status, category_name, seat_label, price, paid_total, currency, upgraded_from, upgraded_to, order_id")
+    .in("order_id", paid.map((o) => o.id))
+    .eq("kind", "sale")
+    .in("status", ["valid", "used"]);
+  if (error || !data?.length) return ticketsFromOrders(orders);
+  const byId = new Map(orders.map((o) => [o.id, o]));
+  // Билет из доплаты относится к событию исходного заказа: событие у них одно.
+  const out: AccountTicket[] = [];
+  for (const t of data as RawTicket[]) {
+    if (t.status === "void" || t.upgraded_to) continue;
+    const order = byId.get(t.order_id);
+    if (!order?.event) continue;
+    out.push({
+      id: t.id,
+      ticketId: t.id,
+      code: t.code,
+      status: t.status,
+      upgraded: Boolean(t.upgraded_from),
+      categoryName: t.category_name,
+      seatLabel: t.seat_label,
+      price: Number(t.paid_total ?? t.price),
+      currency: (t.currency ?? order.currency) as AccountTicket["currency"],
+      orderId: order.id,
+      orderNumber: order.number,
+      event: order.event,
+    });
+  }
+  return out.sort((a, b) => a.event.startsAt.localeCompare(b.event.startsAt) || a.code.localeCompare(b.code));
 }
 
 export function isPast(iso: string) {

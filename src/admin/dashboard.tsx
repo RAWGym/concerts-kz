@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router";
 
 import { tableLabels } from "./audit";
-import { canEdit, db, formatDateTime, money } from "./db";
+import { db, formatDateTime, money } from "./db";
 import { useStaff } from "./layout";
 import { Card, PageTitle, Pill } from "./ui";
 
@@ -37,43 +37,53 @@ export default function Dashboard() {
     const c = db();
     const now = new Date();
     const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-    c.from("orders").select("total, status, created_at").then(({ data }) => {
-      const rows = (data ?? []) as { total: number; status: string; created_at: string }[];
-      const paid = rows.filter((r) => r.status === "paid");
-      setStats({
-        paid: paid.length,
-        revenue: paid.reduce((s, r) => s + Number(r.total), 0),
-        today: paid.filter((r) => r.created_at >= dayStart).length,
-        pending: rows.filter((r) => r.status === "pending").length,
+    // Суммы без данных покупателей: доступно с правом «Метрики» или «Финансы».
+    if (staff.can("metrics", "finance")) {
+      c.rpc("metrics_orders").range(0, 49999).then(({ data }) => {
+        const rows = (data ?? []) as { total: number; refunded_amount: number | null; status: string; kind: string | null; created_at: string }[];
+        const paid = rows.filter((r) => r.status === "paid");
+        const sales = paid.filter((r) => (r.kind ?? "sale") === "sale");
+        setStats({
+          paid: sales.length,
+          revenue: paid.reduce((s, r) => s + Number(r.total) - Number(r.refunded_amount ?? 0), 0),
+          today: sales.filter((r) => r.created_at >= dayStart).length,
+          pending: rows.filter((r) => r.status === "pending").length,
+        });
       });
-    });
+    }
     c.from("events")
       .select("id, slug, starts_at, status, poster_url, ticketon_url, venue:venues(name, city, timezone), translations:event_translations(locale, title), cats:ticket_categories(name, price, available, is_active)")
       .gte("starts_at", now.toISOString())
       .neq("status", "archived")
+      .is("deleted_at", null)
       .order("starts_at")
       .limit(6)
       .returns<Upcoming[]>()
       .then(({ data }) => setUpcoming(data ?? []));
-    c.from("leads").select("id, name, type, created_at, message").eq("status", "new").order("created_at", { ascending: false }).limit(5)
+    if (staff.can("leads")) c.from("leads").select("id, name, type, created_at, message").eq("status", "new").order("created_at", { ascending: false }).limit(5)
       .then(({ data }) => setLeads((data ?? []) as Lead[]));
-    if (staff.role === "admin") {
+    if (staff.can("audit")) {
       c.from("audit_log").select("id, at, actor, table_name, action, label").order("at", { ascending: false }).limit(6)
         .then(({ data }) => setChanges((data ?? []) as Change[]));
     }
-  }, [staff.role]);
+  }, [staff]);
 
+  const money_ = staff.can("metrics", "finance");
   const tiles = [
-    { label: "Выручка", value: stats ? money(stats.revenue) : "…", hint: "по оплаченным заказам", to: staff.role === "admin" || staff.role === "sales" ? "/admin/finance" : undefined },
-    { label: "Оплачено заказов", value: stats?.paid ?? "…", hint: stats ? `сегодня: ${stats.today}` : "" },
-    { label: "Ждут оплаты", value: stats?.pending ?? "…", hint: "незавершённые заказы" },
-    { label: "Новые заявки", value: leads.length, hint: "партнёры и артисты" },
-  ];
+    ...(money_
+      ? [
+          { label: "Выручка", value: stats ? money(stats.revenue) : "…", hint: "за вычетом возвратов", to: "/admin/finance" },
+          { label: "Оплачено заказов", value: stats?.paid ?? "…", hint: stats ? `сегодня: ${stats.today}` : "" },
+          { label: "Ждут оплаты", value: stats?.pending ?? "…", hint: "незавершённые заказы" },
+        ]
+      : []),
+    ...(staff.can("leads") ? [{ label: "Новые заявки", value: leads.length, hint: "партнёры и артисты", to: "/admin/leads" }] : []),
+  ] as { label: string; value: string | number; hint: string; to?: string }[];
 
   return (
     <>
       <PageTitle title={`Здравствуйте${staff.fullName ? `, ${staff.fullName.split(" ")[0]}` : ""}`}>
-        {canEdit(staff.role) && <Link to="/admin/events/new" className="btn btn-primary">Новое событие</Link>}
+        {staff.can("events.edit") && <Link to="/admin/events/new" className="btn btn-primary">Новое событие</Link>}
       </PageTitle>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -130,6 +140,7 @@ export default function Dashboard() {
       </div>
 
       <div className="mt-10 grid gap-6 lg:grid-cols-2">
+        {staff.can("leads") && (
         <Card>
           <div className="mb-3 flex items-center justify-between">
             <h2 className="font-display text-sm font-semibold uppercase text-fg">Новые заявки</h2>
@@ -146,8 +157,9 @@ export default function Dashboard() {
             </ul>
           )}
         </Card>
+        )}
 
-        {staff.role === "admin" && (
+        {staff.can("audit") && (
           <Card>
             <div className="mb-3 flex items-center justify-between">
               <h2 className="font-display text-sm font-semibold uppercase text-fg">Последние изменения</h2>

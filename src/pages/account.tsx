@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Navigate, useNavigate, useParams, useSearchParams } from "react-router";
 
 import { OrdersTab } from "@/components/account/orders";
@@ -10,9 +10,9 @@ import { EASE_OUT } from "@/components/motion/reveal";
 import { fill, getAccountDictionary } from "@/i18n/account";
 import { defaultLocale, intlLocale, isLocale } from "@/i18n/config";
 import { localePath } from "@/i18n/routing";
-import { getMyOrders, isStaff, signOut, ticketsFromOrders } from "@/lib/account/api";
+import { getMyOrders, getMyTickets, isStaff, signOut, ticketsFromOrders } from "@/lib/account/api";
 import { initials, useSession } from "@/lib/account/session";
-import type { AccountOrder } from "@/lib/account/types";
+import type { AccountOrder, AccountTicket } from "@/lib/account/types";
 
 const TABS = ["tickets", "orders", "profile"] as const;
 type Tab = (typeof TABS)[number];
@@ -31,6 +31,8 @@ export default function AccountPage() {
   const tab: Tab = TABS.includes(tabParam as Tab) ? (tabParam as Tab) : "tickets";
 
   const [orders, setOrders] = useState<AccountOrder[] | null>(null);
+  const [tickets, setTickets] = useState<AccountTicket[]>([]);
+  const [reload, setReload] = useState(0);
   const [loadError, setLoadError] = useState(false);
   const [staff, setStaff] = useState(false);
 
@@ -44,15 +46,18 @@ export default function AccountPage() {
     if (!userId) return;
     let alive = true;
     getMyOrders(userId, locale)
-      .then((list) => alive && setOrders(list))
+      .then(async (list) => {
+        const own = await getMyTickets(list).catch(() => ticketsFromOrders(list));
+        if (!alive) return;
+        setTickets(own);
+        setOrders(list);
+      })
       .catch(() => alive && (setLoadError(true), setOrders([])));
     isStaff(userId).then((v) => alive && setStaff(v)).catch(() => {});
     return () => {
       alive = false;
     };
-  }, [userId, locale]);
-
-  const tickets = useMemo(() => ticketsFromOrders(orders ?? []), [orders]);
+  }, [userId, locale, reload]);
 
   if (session.status === "loading") {
     return (
@@ -188,7 +193,7 @@ export default function AccountPage() {
           className="mt-8"
         >
           {tab === "tickets" &&
-            (orders ? <TicketsTab tickets={tickets} locale={locale} t={t} /> : <TicketsSkeleton />)}
+            (orders ? <TicketsTab tickets={tickets} locale={locale} t={t} onChanged={() => setReload((n) => n + 1)} /> : <TicketsSkeleton />)}
           {tab === "orders" &&
             (orders ? <OrdersTab orders={orders} locale={locale} t={t} /> : <TicketsSkeleton />)}
           {tab === "profile" && (

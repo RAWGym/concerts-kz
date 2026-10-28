@@ -19,7 +19,7 @@ import type {
  * эквайринга хранятся только там.
  */
 // Адрес публичный (ключи только в секретах функции), поэтому есть запасной вариант.
-const apiUrl =
+export const apiUrl =
   (import.meta.env.VITE_TICKETS_API_URL as string | undefined) ||
   "https://jlpfqasntsnuzxlouqvq.supabase.co/functions/v1/tickets";
 
@@ -37,6 +37,12 @@ export interface TicketProvider {
 }
 
 /* ---------------- сервер продаж ---------------- */
+
+async function authHeaders(): Promise<Record<string, string>> {
+  const { data } = await createBrowserSupabase().auth.getSession();
+  const token = data.session?.access_token;
+  return token ? { authorization: `Bearer ${token}` } : {};
+}
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${apiUrl}${path}`, {
@@ -87,10 +93,12 @@ const apiProvider: TicketProvider = {
       headers: token ? { authorization: `Bearer ${token}` } : {},
     });
   },
-  startPayment: (orderId, returnUrl) =>
+  // Оплату начинает только владелец заказа: передаём токен входа.
+  startPayment: async (orderId, returnUrl) =>
     call("/payments", {
       method: "POST",
       body: JSON.stringify({ orderId, returnUrl }),
+      headers: await authHeaders(),
     }),
   getOrder: (orderId) => call(`/orders/${encodeURIComponent(orderId)}`),
 };
@@ -210,6 +218,51 @@ export async function retryPayment(orderId: string, returnUrl: string): Promise<
   if (!res) return { error: "network" };
   const body = (await res.json().catch(() => ({}))) as { paymentUrl?: string; error?: string };
   return res.ok && body.paymentUrl ? { paymentUrl: body.paymentUrl } : { error: body.error ?? "internal" };
+}
+
+export type UpgradeOption = { code: string; name: string; price: number; diff: number; total: number; available: number | null };
+
+/** Варианты апгрейда для билетов покупателя. */
+export async function getUpgradeOptions(ticketIds: string[]) {
+  return call<{ options: UpgradeOption[]; until: string | null }>(
+    `/me/upgrade-options?tickets=${encodeURIComponent(ticketIds.join(","))}`,
+    { headers: await authHeaders() },
+  );
+}
+
+/** Оформляет доплату за апгрейд и возвращает ссылку банка. */
+export async function startUpgrade(ticketIds: string[], target: string, returnUrl: string) {
+  return call<{ orderId: string; paymentUrl: string }>("/me/upgrades", {
+    method: "POST",
+    body: JSON.stringify({ ticketIds, target, returnUrl }),
+    headers: await authHeaders(),
+  });
+}
+
+export type RefundInfo = {
+  canRequest: boolean;
+  /** Почему нельзя: event_not_changed, deadline_passed, nothing_to_refund, request_exists, not_found. */
+  reason: string | null;
+  order: { id: string; number: number; status: string; currency: string } | null;
+  event: {
+    id: string; slug: string; title: string; startsAt: string; originalStartsAt: string | null;
+    changeKind: "postponed" | "cancelled" | null; posterUrl: string | null; venue: string | null; city: string | null; timezone: string;
+  } | null;
+  tickets: { id: string; code: string; category: string; seat: string | null; status: string; paid: number }[];
+  request: { id: string; status: "new" | "refunded" | "rejected" | "cancelled"; amount: number; created_at: string; decision_note: string | null } | null;
+};
+
+/** Данные для заявки на возврат после переноса или отмены. */
+export async function getRefundInfo(orderId: string) {
+  return call<RefundInfo>(`/me/refund-info?order=${encodeURIComponent(orderId)}`, { headers: await authHeaders() });
+}
+
+export async function requestRefund(orderId: string, ticketIds: string[], reason: string) {
+  return call<{ id: string }>("/me/refund-requests", {
+    method: "POST",
+    body: JSON.stringify({ orderId, ticketIds, reason }),
+    headers: await authHeaders(),
+  });
 }
 
 /** Билет по коду для страницы билета. */

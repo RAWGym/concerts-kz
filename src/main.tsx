@@ -79,6 +79,8 @@ const router = createBrowserRouter([
       { path: "invites", element: admin(() => import("@/admin/invites")) },
       { path: "scanners", element: admin(() => import("@/admin/scanners")) },
       { path: "entry-log", element: admin(() => import("@/admin/entry-log")) },
+      { path: "approvals", element: admin(() => import("@/admin/approvals")) },
+      { path: "refunds", element: admin(() => import("@/admin/refunds")) },
     ],
   },
   {
@@ -101,6 +103,7 @@ const router = createBrowserRouter([
           { path: "events/:slug/tickets", element: <Checkout /> },
           { path: "orders/:id", element: lazyComponent(() => import("@/pages/order")) },
           { path: "ticket/:code", element: lazyComponent(() => import("@/pages/ticket")) },
+          { path: "refund", element: lazyComponent(() => import("@/pages/refund")) },
           { path: "news", element: <News /> },
           { path: "news/:slug", element: <NewsDetail /> },
           { path: "reports", element: <Reports /> },
