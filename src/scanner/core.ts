@@ -1,4 +1,5 @@
 import { createBrowserSupabase } from "@/lib/supabase/client";
+import { seatName } from "@/lib/tickets/seats";
 
 import { native } from "./feedback";
 
@@ -69,7 +70,7 @@ export const fmtTime = (iso: string | null | undefined, tz = "Asia/Almaty") =>
   iso ? new Intl.DateTimeFormat("ru-RU", { timeZone: tz, hour: "2-digit", minute: "2-digit" }).format(new Date(iso)) : "";
 export const fmtDate = (iso: string, tz = "Asia/Almaty") =>
   new Intl.DateTimeFormat("ru-RU", { timeZone: tz, day: "numeric", month: "long", weekday: "short" }).format(new Date(iso));
-export const seatText = (s: string | null) => (s ? s.replace(/^table-(\d+)$/, "Стол $1") : null);
+export const seatText = (s: string | null) => seatName(s, "ru");
 export const ago = (iso: string) => {
   const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
   if (m < 1) return "только что";

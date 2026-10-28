@@ -1,3 +1,4 @@
+import { seatName } from "@/lib/tickets/seats";
 import { db } from "./db";
 
 export type TicketRow = {
@@ -51,9 +52,7 @@ export const statusLabels = { valid: "Не прошёл", used: "Прошёл", 
 export const statusTones = { valid: "muted", used: "teal", void: "coral" } as const;
 
 export function seatText(seat: string | null) {
-  if (!seat) return null;
-  const m = seat.match(/^table-(\d+)$/);
-  return m ? `Стол ${m[1]}` : seat;
+  return seatName(seat, "ru");
 }
 
 /** +77011234567 → +7 701 123 45 67 */

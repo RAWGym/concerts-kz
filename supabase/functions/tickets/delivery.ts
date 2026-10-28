@@ -210,7 +210,11 @@ const money = (n: number, cur: string) => `${new Intl.NumberFormat("ru-RU").form
 const when = (iso: string, tz: string, opts: Intl.DateTimeFormatOptions) =>
   new Intl.DateTimeFormat("ru-RU", { timeZone: tz, ...opts }).format(new Date(iso));
 
-export const seatText = (seat: string | null) => (seat ? seat.replace(/^table-(\d+)$/, "Стол $1") : "Без места");
+export const seatText = (seat: string | null) => {
+  if (!seat) return "Без места";
+  const m = seat.match(/^table-(\d+)(?:-(\d))?$/);
+  return m ? (m[2] ? `Стол ${m[1]} · место ${m[2]}` : `Стол ${m[1]}`) : seat;
+};
 
 function ticketHtml(t: TicketView) {
   const e = t.event;

@@ -11,6 +11,7 @@ import { company } from "@/lib/company";
 import { formatEventDate, formatEventTime, formatMoney } from "@/lib/format";
 import { getTicket } from "@/lib/tickets/provider";
 import type { TicketView } from "@/lib/tickets/types";
+import { seatName } from "@/lib/tickets/seats";
 
 const L = {
   ru: {
@@ -142,9 +143,7 @@ export default function TicketPage() {
 }
 
 export function seatLabel(seat: string | null, locale: Locale) {
-  if (!seat) return L[locale].noSeat;
-  const m = seat.match(/^table-(\d+)$/);
-  return m ? `${L[locale].table} ${m[1]}` : seat;
+  return seatName(seat, locale) ?? L[locale].noSeat;
 }
 
 /** Сам билет: фирменная шапка, событие, QR-корешок, данные и правила. */

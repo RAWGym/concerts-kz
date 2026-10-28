@@ -13,6 +13,7 @@ import { formatEventDate, formatEventTime, formatMoney } from "@/lib/format";
 
 import { QrCode } from "./qr-code";
 import { EmptyPanel, Segmented } from "./ui";
+import { seatName } from "@/lib/tickets/seats";
 
 /** Вкладка «Мои билеты»: предстоящие и прошедшие, билет — по клику. */
 export function TicketsTab({
@@ -118,7 +119,7 @@ function TicketCard({
             <p className="text-[10px] uppercase tracking-[0.14em] text-fg-subtle">{t.category}</p>
             <p className="truncate text-sm font-medium text-fg">
               {ticket.categoryName}
-              {ticket.seatLabel ? ` · ${ticket.seatLabel}` : ""}
+              {ticket.seatLabel ? ` · ${seatName(ticket.seatLabel, locale)}` : ""}
             </p>
           </div>
           <span className="shrink-0 font-display text-[10px] font-semibold uppercase tracking-[0.12em] text-fg-muted transition-colors group-hover:text-coral">
@@ -225,7 +226,7 @@ function TicketModal({
 
             <dl className="grid grid-cols-2 gap-x-4 gap-y-4 px-6 py-5 text-sm">
               <Fact label={t.category} value={ticket.categoryName} />
-              <Fact label={t.seat} value={ticket.seatLabel ?? "–"} />
+              <Fact label={t.seat} value={seatName(ticket.seatLabel, locale) ?? "–"} />
               <Fact label={t.order} value={`№ ${ticket.orderNumber}`} />
               <Fact label={t.price} value={formatMoney(ticket.price, ticket.currency, locale)} />
               <div className="col-span-2">

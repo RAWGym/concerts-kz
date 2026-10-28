@@ -13,6 +13,7 @@ import { formatEventDateTime, formatMoney } from "@/lib/format";
 import { resendTickets } from "@/lib/tickets/provider";
 
 import { EmptyPanel, StatusPill } from "./ui";
+import { seatName } from "@/lib/tickets/seats";
 
 /** Вкладка «Заказы»: список с раскрывающимися деталями. */
 export function OrdersTab({
@@ -111,7 +112,7 @@ export function OrdersTab({
                           <li key={item.id} className="flex items-baseline justify-between gap-4 text-sm">
                             <span className="text-fg">
                               {item.categoryName}
-                              {item.seatLabel ? ` · ${item.seatLabel}` : ""}
+                              {item.seatLabel ? ` · ${seatName(item.seatLabel, locale)}` : ""}
                               <span className="text-fg-subtle"> × {item.quantity}</span>
                             </span>
                             <span className="text-fg-muted">
